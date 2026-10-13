@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .toolbar-content { display: flex; gap: 12px; flex-wrap: wrap; }
+        .filter-input { width: 150px; }
+        .filter-select { width: 150px; }
+        .filter-select-sm { width: 130px; }
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .role-badge-admin { background: var(--success-light); color: var(--success); }
+        .role-badge-other { background: var(--warning-light); color: var(--warning); }
+        .action-cell { text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="user.html" class="active">用户管理</a>
+                <a href="item.html">项目管理</a>
+                <a href="package.html">套餐管理</a>
+                <a href="capacity-config.html">名额配置</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info">
+                <span>👤 <strong id="currentUser"></strong> | <span id="userRole"></span></span>
+            </div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>用户管理</h2>
+            <p>管理系统用户账户及权限配置</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ 新增用户</button>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-content">
+            <input type="text" id="filterUsername" class="form-control filter-input" placeholder="按用户名搜索">
+            <input type="text" id="filterRealName" class="form-control filter-input" placeholder="按真实姓名搜索">
+            <select id="filterRole" class="form-control filter-select">
+                <option value="">全部角色</option>
+                <option value="ADMIN">管理员</option>
+                <option value="DOCTOR">医生</option>
+                <option value="HR">HR</option>
+            </select>
+            <select id="filterActive" class="form-control filter-select-sm">
+                <option value="">全部状态</option>
+                <option value="1">启用</option>
+                <option value="0">禁用</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadData(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th><th>用户名</th><th>真实姓名</th><th>角色</th>
+                <th>状态</th><th>创建时间</th><th class="action-cell">操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">新增用户</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="editUsername" class="form-control" placeholder="请输入登录账号">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="editPassword" class="form-control" placeholder="留空则不修改">
+            </div>
+            <div class="form-group">
+                <label>真实姓名</label>
+                <input type="text" id="editRealName" class="form-control" placeholder="请输入真实姓名">
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="editRole" class="form-control">
+                    <option value="ADMIN">管理员 (ADMIN)</option>
+                    <option value="DOCTOR">医生 (DOCTOR)</option>
+                    <option value="HR">HR (HR)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button type="button" class="btn btn-success" onclick="saveUser()">保存</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth();
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+    document.getElementById('userRole').innerText    = localStorage.getItem('role');
+
+    let currentPage = 1;
+
+    function buildQuery(page) {
+        const username = encodeURIComponent(document.getElementById('filterUsername').value.trim());
+        const realName = encodeURIComponent(document.getElementById('filterRealName').value.trim());
+        const role     = document.getElementById('filterRole').value;
+        const isActive = document.getElementById('filterActive').value;
+        return `/admin/users?page=${page}&size=10&username=${username}&realName=${realName}&role=${role}&isActive=${isActive}&sort=id,asc`;
+    }
+
+    async function loadData(page = 1) {
+        currentPage = page;
+        const data = await request(buildQuery(page), 'GET');
+        if (!data) return;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.records.forEach(user => {
+            const tr = document.createElement('tr');
+            const roleClass = user.role === 'ADMIN' ? 'role-badge-admin' : 'role-badge-other';
+            tr.innerHTML = `
+                <td><strong>#${user.userId}</strong></td>
+                <td>${user.username}</td>
+                <td>${user.realName}</td>
+                <td><span class="status-badge ${roleClass}">${user.role}</span></td>
+                <td><span class="status-badge ${user.isActive === 1 ? 'status-active' : 'status-inactive'}">
+                    ${user.isActive === 1 ? '正常' : '禁用'}</span></td>
+                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                <td class="action-cell">
+                    <button class="btn btn-sm btn-secondary"
+                        onclick="editUser(${user.userId},'${user.username}','${user.realName}','${user.role}')">编辑</button>
+                    <button class="btn btn-sm ${user.isActive === 1 ? 'btn-danger' : 'btn-success'}"
+                        onclick="toggleStatus(${user.userId},${user.isActive === 1 ? 0 : 1})">
+                        ${user.isActive === 1 ? '禁用' : '启用'}</button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+        renderPagination('#pagination', data.current, data.pages, loadData);
+    }
+
+    function resetFilter() {
+        ['filterUsername','filterRealName','filterRole','filterActive'].forEach(id => document.getElementById(id).value = '');
+        loadData(1);
+    }
+
+    function openModal() {
+        document.getElementById('modalTitle').innerText      = '新增用户';
+        document.getElementById('editId').value             = '';
+        document.getElementById('editUsername').value       = '';
+        document.getElementById('editUsername').disabled    = false;
+        document.getElementById('editPassword').value       = '';
+        document.getElementById('editPassword').placeholder = '请输入密码';
+        document.getElementById('editRealName').value       = '';
+        document.getElementById('editRole').value           = 'DOCTOR';
+        document.getElementById('editModal').style.display  = 'block';
+    }
+
+    function editUser(id, username, realName, role) {
+        document.getElementById('modalTitle').innerText      = '编辑用户';
+        document.getElementById('editId').value             = id;
+        document.getElementById('editUsername').value       = username;
+        document.getElementById('editUsername').disabled    = true;
+        document.getElementById('editPassword').value       = '';
+        document.getElementById('editPassword').placeholder = '留空则不修改';
+        document.getElementById('editRealName').value       = realName;
+        document.getElementById('editRole').value           = role;
+        document.getElementById('editModal').style.display  = 'block';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function saveUser() {
+        const id = document.getElementById('editId').value;
+        const payload = {
+            username: document.getElementById('editUsername').value,
+            password: document.getElementById('editPassword').value,
+            realName: document.getElementById('editRealName').value,
+            role:     document.getElementById('editRole').value
+        };
+        if (id) {
+            if (!payload.password) delete payload.password;
+            await request(`/admin/users/${id}`, 'PUT', payload);
+        } else {
+            if (!payload.password) { showToast('新增用户必须填写密码', 'warn'); return; }
+            await request('/admin/users', 'POST', payload);
+        }
+        closeModal();
+        loadData(currentPage);
+    }
+
+    async function toggleStatus(id, newStatus) {
+        await request(`/admin/users/${id}/status?isActive=${newStatus}`, 'PUT');
+        loadData(currentPage);
+    }
+
+    loadData(1);
+</script>
+</body>
+</html>

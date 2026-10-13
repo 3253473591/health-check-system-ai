@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR首页 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/hr-home.css">
+    <base target="_blank">
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links"><a href="hr-home.html" class="active">HR首页</a></div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👤 <strong id="currentUser"></strong> | HR</span></div>
+            <a href="#" onclick="logout()" class="nav-logout" style="color: var(--danger); font-weight: 600; text-decoration: none;">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>HR 批量导入</h2>
+            <p>下载模板 → 填写人员信息 → 选择医生 → 上传导入（支持智能时段均衡）</p>
+        </div>
+    </div>
+
+    <div class="hr-card">
+        <h3>第一步：下载导入模板</h3>
+        <p class="text-secondary font-14 margin-bottom-16">
+            模板包含4列：姓名、身份证号、手机号、套餐名称。第4列为下拉选择，请勿手动填写。
+        </p>
+        <button class="btn btn-primary" onclick="downloadTemplate()">⬇ 下载 .xlsx 模板</button>
+    </div>
+
+    <div class="hr-card">
+        <h3>第二步：选择负责医生并上传文件</h3>
+        <div class="doctor-select-row">
+            <label for="doctorSelect">分配医生：</label>
+            <select id="doctorSelect" onchange="onDoctorChange()">
+                <option value="">— 请先选择医生 —</option>
+            </select>
+            <span id="doctorCapTip" style="font-size:13px;color:#888;"></span>
+        </div>
+
+        <label class="upload-area" id="uploadArea" for="fileInput">
+            <div class="upload-icon">📂</div>
+            <div>点击或拖拽 <strong>.xlsx</strong> 文件到此处</div>
+            <div class="upload-hint">仅支持 .xlsx 格式，文件大小不超过 10MB</div>
+            <div class="file-chosen" id="fileChosen"></div>
+            <input type="file" id="fileInput" accept=".xlsx">
+        </label>
+
+        <div class="hr-actions">
+            <button class="btn btn-secondary" onclick="clearFile()">清除文件</button>
+            <button class="btn btn-primary" id="btnPreview" onclick="doPreview()" disabled>
+                开始解析
+            </button>
+        </div>
+    </div>
+
+    <div id="previewArea" class="hidden"></div>
+    <div id="resultArea" class="hidden"></div>
+</div>
+
+<div class="modal-backdrop" id="modalSpillover">
+    <div class="modal-box">
+        <h3>⚠️ 目标医生名额不足</h3>
+        <p id="modalSpilloverText"></p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="handleSpillover(false)">取消导入</button>
+            <button class="btn btn-primary"   onclick="handleSpillover(true)">分配给其他医生</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="modalFuture">
+    <div class="modal-box">
+        <h3>⚠️ 今日总名额不足</h3>
+        <p id="modalFutureText"></p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="handleFuture(false)">取消导入</button>
+            <button class="btn btn-primary"   onclick="handleFuture(true)">分配到未来日期（智能时段均衡）</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('HR');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    let selectedFile = null;
+    let previewData = null;
+    let todayCapacity = null;
+
+    (async function init() {
+        try {
+            const token = localStorage.getItem('token') || '';
+
+            const capRes = await fetch('/api/public/capacity/today',
+                { headers: { 'Authorization': token } });
+            const capJson = await capRes.json();
+            todayCapacity = capJson.data;
+
+            const sel = document.getElementById('doctorSelect');
+            (todayCapacity.doctorList || []).forEach(d => {
+                const mRem = d.morning?.remaining || 0;
+                const mCap = d.morning?.capacity || 25;
+                const aRem = d.afternoon?.remaining || 0;
+                const aCap = d.afternoon?.capacity || 25;
+
+                const opt = document.createElement('option');
+                opt.value = d.doctorId;
+
+                let mText = mRem === 0 ? `上午已满` : `上午剩${mRem}`;
+                let aText = aRem === 0 ? `下午已满` : `下午剩${aRem}`;
+                let warn = (mRem === 0 || aRem === 0) ? ' ⚠️' : '';
+
+                opt.textContent = `${d.doctorName}（${mText}，${aText}）${warn}`;
+                opt.dataset.morningRem = mRem;
+                opt.dataset.afternoonRem = aRem;
+                opt.dataset.totalRem = mRem + aRem;
+                sel.appendChild(opt);
+            });
+        } catch (e) {
+            showToast('加载医生列表失败', 'error');
+        }
+    })();
+
+    function onDoctorChange() {
+        const sel = document.getElementById('doctorSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if (opt.dataset.morningRem === '0' || opt.dataset.afternoonRem === '0') {
+            document.getElementById('doctorCapTip').innerHTML =
+                '<span style="color:var(--warning)">该医生存在时段瓶颈，导入时将自动均衡分配</span>';
+        } else {
+            document.getElementById('doctorCapTip').innerText = '';
+        }
+        checkBtnState();
+    }
+
+    const uploadArea = document.getElementById('uploadArea');
+    uploadArea.addEventListener('dragover',  e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', ()  => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+        e.preventDefault(); uploadArea.classList.remove('dragover');
+        const f = e.dataTransfer.files[0]; if (f) setFile(f);
+    });
+    document.getElementById('fileInput').addEventListener('change', e => {
+        const f = e.target.files[0]; if (f) setFile(f);
+    });
+
+    function setFile(f) {
+        if (!f.name.endsWith('.xlsx')) { showToast('请选择 .xlsx 格式文件', 'warn'); return; }
+        selectedFile = f;
+        document.getElementById('fileChosen').innerText = '已选择：' + f.name;
+        document.getElementById('previewArea').className = 'hidden';
+        document.getElementById('resultArea').className  = 'hidden';
+        checkBtnState();
+    }
+
+    async function downloadTemplate() {
+        const token = localStorage.getItem('token') || '';
+        try {
+            const response = await fetch('/api/hr/template', {
+                method: 'GET',
+                headers: { 'Authorization': token }
+            });
+
+            if (!response.ok) {
+                const json = await response.json().catch(() => null);
+                showToast('下载失败：' + (json?.msg || response.status), 'error');
+                return;
+            }
+
+            const blob = await response.blob();
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = '体检人员导入模板.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            showToast('网络错误：' + e.message, 'error');
+        }
+    }
+
+    function clearFile() {
+        selectedFile = null;
+        document.getElementById('fileInput').value       = '';
+        document.getElementById('fileChosen').innerText  = '';
+        document.getElementById('btnPreview').disabled   = true;
+        document.getElementById('previewArea').className = 'hidden';
+        document.getElementById('resultArea').className  = 'hidden';
+        previewData = null;
+    }
+
+    function checkBtnState() {
+        const doctorId = document.getElementById('doctorSelect').value;
+        document.getElementById('btnPreview').disabled = !(selectedFile && doctorId);
+    }
+
+    async function doPreview() {
+        const doctorId = document.getElementById('doctorSelect').value;
+        if (!selectedFile || !doctorId) { showToast('请先选择医生和文件', 'warn'); return; }
+
+        const btn = document.getElementById('btnPreview');
+        btn.disabled = true; btn.innerText = '解析中...';
+
+        try {
+            const fd = new FormData();
+            fd.append('file',     selectedFile);
+            fd.append('doctorId', doctorId);
+
+            const token = localStorage.getItem('token') || '';
+            const res   = await fetch('/api/hr/preview', {
+                method: 'POST', headers: { 'Authorization': token }, body: fd
+            });
+            const json = await res.json();
+            if (json.code !== 200) { showToast(json.msg || '解析失败', 'error'); return; }
+
+            previewData = json.data;
+            renderPreview(previewData);
+        } catch (e) {
+            showToast('网络异常：' + e.message, 'error');
+        } finally {
+            btn.disabled = false; btn.innerText = '开始解析';
+        }
+    }
+
+    function renderPreview(d) {
+        const area = document.getElementById('previewArea');
+        area.className = '';
+
+        const failHtml = d.failCount > 0
+            ? `<div style="margin-top:12px;">
+            <strong>解析错误（${d.failCount} 行，已排除）：</strong>
+            <table class="fail-table" style="margin-top:6px;">
+                <thead><tr><th>位置</th><th>原因</th></tr></thead>
+                <tbody>${(d.failDetails||[]).map(f =>
+                `<tr><td>第${f.row}行</td><td>${f.reason}</td></tr>`).join('')}
+                </tbody>
+            </table>
+           </div>` : '';
+
+        let statusHtml, actionHtml;
+
+        if (d.total === 0) {
+            statusHtml = `<div class="capacity-tip err" style="display:block;">
+            文件中没有可导入的有效数据，请检查文件内容。</div>`;
+            actionHtml = '';
+
+        } else if (d.cannotFitIn30Days) {
+            statusHtml = `<div class="capacity-tip err" style="display:block;">
+            🚫 <strong>30天内名额不足，无法导入</strong><br>
+            有效记录 <strong>${d.total}</strong> 条，
+            30天内总剩余名额仅 <strong>${d.thirtyDayTotalCapacity}</strong> 名，
+            缺口 <strong>${d.total - d.thirtyDayTotalCapacity}</strong> 人。<br>
+            请联系管理员扩充名额配置后再重新导入。</div>`;
+            actionHtml = '';   // 不显示任何导入按钮
+
+        } else {
+            const periodDetail = `
+            <div style="margin:10px 0;padding:10px;background:#f5f5f5;border-radius:4px;">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">时段分布预览：</div>
+                <div style="display:flex;gap:20px;font-size:14px;">
+                    <div>上午：系统剩余 <strong>${d.allDoctorsMorningRemaining}</strong> 名</div>
+                    <div>下午：系统剩余 <strong>${d.allDoctorsAfternoonRemaining}</strong> 名</div>
+                </div>
+                <div style="margin-top:6px;font-size:13px;color:#888;">
+                    目标医生：上午剩 ${d.targetDoctorMorningRemaining}，下午剩 ${d.targetDoctorAfternoonRemaining}
+                </div>
+                ${d.noEnoughToday ? `<div style="margin-top:6px;font-size:13px;color:#888;">
+                    30天总可用名额：<strong>${d.thirtyDayTotalCapacity}</strong> 名（容量充足，将自动分配至未来日期）
+                </div>` : ''}
+            </div>
+        `;
+
+            if (!d.hasSpillover) {
+                statusHtml = `<div class="capacity-tip ok" style="display:block;">
+                ✅ 名额充足：有效记录 <strong>${d.total}</strong> 条<br>
+                目标医生总剩余 <strong>${d.targetDoctorRemaining}</strong> 名（上午${d.targetDoctorMorningRemaining}/下午${d.targetDoctorAfternoonRemaining}）<br>
+                智能均衡后可直接导入。${periodDetail}</div>`;
+                actionHtml = `<button class="btn btn-primary" style="margin-top:14px;"
+                onclick="doImport(false, false)">确认导入（${d.total} 条）</button>`;
+
+            } else if (!d.noEnoughToday) {
+                statusHtml = `<div class="capacity-tip warn" style="display:block;">
+                ⚠️ 目标医生名额不足<br>
+                目标医生：上午剩 ${d.targetDoctorMorningRemaining}，下午剩 ${d.targetDoctorAfternoonRemaining}，总剩余 ${d.targetDoctorRemaining} 名<br>
+                有效记录 <strong>${d.total}</strong> 条，溢出 <strong>${d.spilloverCount}</strong> 条<br>
+                系统总剩余：上午 ${d.allDoctorsMorningRemaining} / 下午 ${d.allDoctorsAfternoonRemaining}<br>
+                溢出部分将分配给其他医生，并保持时段均衡。${periodDetail}</div>`;
+                actionHtml = `<div class="hr-actions" style="margin-top:14px;">
+                <button class="btn btn-secondary" onclick="doImport(false, false)">取消</button>
+                <button class="btn btn-primary"   onclick="doImport(true, false)">
+                    溢出部分分配给其他医生（智能时段均衡）</button>
+            </div>`;
+
+            } else {
+                statusHtml = `<div class="capacity-tip err" style="display:block;">
+                ❌ 今日总名额不足<br>
+                系统总剩余：上午 ${d.allDoctorsMorningRemaining} / 下午 ${d.allDoctorsAfternoonRemaining}，合计 ${d.allDoctorsRemaining} 名<br>
+                有效记录 <strong>${d.total}</strong> 条，<strong>${d.futureCount}</strong> 条需分配到未来日期<br>
+                30天总可用名额 <strong>${d.thirtyDayTotalCapacity}</strong> 名，系统将自动按上下午比例均衡分配至未来日期。${periodDetail}</div>`;
+                actionHtml = `<div class="hr-actions" style="margin-top:14px;">
+                <button class="btn btn-secondary" onclick="doImport(false, false)">取消</button>
+                <button class="btn btn-primary"   onclick="doImport(true, true)">
+                    分配到未来日期（30天内智能时段均衡）</button>
+            </div>`;
+            }
+        }
+
+        area.innerHTML = `
+        <div class="hr-card">
+            <h3>名额预览（已启用智能时段均衡）</h3>
+            ${statusHtml}
+            ${failHtml}
+            ${actionHtml}
+        </div>`;
+        area.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function doImport(spilloverToOthers, spilloverToFuture) {
+        if (!previewData || !previewData.previewToken) {
+            showToast('请先完成文件解析', 'warn'); return;
+        }
+        const doctorId = document.getElementById('doctorSelect').value;
+        const token    = localStorage.getItem('token') || '';
+
+        try {
+            const res = await fetch('/api/hr/import', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({
+                    previewToken:           previewData.previewToken,
+                    doctorId:               parseInt(doctorId),
+                    spilloverToOtherDoctors: spilloverToOthers,
+                    spilloverToFuture:       spilloverToFuture
+                })
+            });
+            const json = await res.json();
+            renderResult(json);
+        } catch (e) {
+            showToast('网络异常：' + e.message, 'error');
+        }
+    }
+
+    function renderResult(json) {
+        const area = document.getElementById('resultArea');
+        area.className = '';
+        const d = json.data || {};
+        if (json.code === 200) {
+            const periodInfo = d.morningCount !== undefined ?
+                `<div style="margin-top:8px;font-size:13px;color:#666;">
+                    时段分布：上午 <strong>${d.morningCount}</strong> 人，下午 <strong>${d.afternoonCount}</strong> 人
+                </div>` : '';
+            area.innerHTML = `
+                <div class="result-box success">
+                    <div class="result-title">✅ 导入成功</div>
+                    <div>共 <strong>${d.total}</strong> 条，成功导入 <strong>${d.successCount}</strong> 条。</div>
+                    ${periodInfo}
+                </div>`;
+            clearFile();
+            previewData = null;
+            document.getElementById('previewArea').className = 'hidden';
+            // 刷新医生列表以更新剩余名额
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            area.innerHTML = `
+                <div class="result-box fail">
+                    <div class="result-title">❌ 导入失败</div>
+                    <div>${json.msg || '未知错误'}</div>
+                </div>`;
+        }
+        area.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>

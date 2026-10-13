@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>医生首页 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/report.css">
+    <style>
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .quick-actions { padding: 32px; }
+        .quick-actions h3 { margin: 0 0 16px; font-size: 18px; }
+        .quick-actions .btn-group { display: flex; flex-direction: column; gap: 12px; }
+        .quick-actions .btn { text-decoration: none; }
+        .recent-records { padding: 32px; }
+        .recent-records h3 { margin: 0 0 16px; font-size: 18px; }
+        .recent-records td { cursor: pointer; }
+        .empty-cell { text-align: center; color: var(--text-tertiary); }
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="doctor-home.html" class="active">首页</a>
+                <a href="exam-register.html">体检登记</a>
+                <a href="exam-list.html">体检记录</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👨‍⚕️ <strong id="currentUser"></strong> | 医生</span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>医生工作台</h2>
+            <p>欢迎回来，<span id="welcomeName"></span> 医生</p>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">待体检</div>
+            <div class="stat-value" id="pendingCount">-</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-icon">✅</div>
+            <div class="stat-label">进行中</div>
+            <div class="stat-value" id="inProgressCount">-</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-icon">🔒</div>
+            <div class="stat-label">已锁定</div>
+            <div class="stat-value" id="lockedCount">-</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-icon">📢</div>
+            <div class="stat-label">已发布</div>
+            <div class="stat-value" id="publishedCount">-</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="table-container quick-actions">
+            <h3>快捷操作</h3>
+            <div class="btn-group">
+                <a href="exam-register.html" class="btn btn-primary btn-lg">📝 新增体检登记</a>
+                <a href="exam-list.html" class="btn btn-secondary btn-lg">📋 查看体检记录</a>
+            </div>
+        </div>
+        <div class="table-container recent-records">
+            <h3>最近登记</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>姓名</th>
+                        <th>状态</th>
+                        <th>登记时间</th>
+                    </tr>
+                </thead>
+                <tbody id="recentBody">
+                    <tr><td colspan="3" class="empty-cell">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('DOCTOR');
+    const realName = localStorage.getItem('realName');
+    document.getElementById('currentUser').innerText = realName;
+    document.getElementById('welcomeName').innerText = realName;
+
+    const STATUS_LABEL = { PENDING:'待体检', IN_PROGRESS:'进行中', LOCKED:'已锁定', PUBLISHED:'已发布' };
+
+    async function loadStats() {
+        const statuses = ['PENDING','IN_PROGRESS','LOCKED','PUBLISHED'];
+        const ids      = ['pendingCount','inProgressCount','lockedCount','publishedCount'];
+        for (let i = 0; i < statuses.length; i++) {
+            const data = await request(`/doctor/examinations?page=1&size=1&status=${statuses[i]}`, 'GET');
+            document.getElementById(ids[i]).innerText = data ? data.total : 0;
+        }
+    }
+
+    async function loadRecent() {
+        const data  = await request('/doctor/examinations?page=1&size=5', 'GET');
+        const tbody = document.getElementById('recentBody');
+        if (!data || !data.records.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-cell">暂无记录</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.records.map(r => `
+            <tr onclick="window.location.href='exam-detail.html?examId=${r.examId}'">
+                <td>${r.realName}</td>
+                <td><span class="status-badge status-active">${STATUS_LABEL[r.status] || r.status}</span></td>
+                <td>${r.registerTime ? r.registerTime.replace('T',' ').substring(0,16) : ''}</td>
+            </tr>`).join('');
+    }
+
+    loadStats();
+    loadRecent();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+# ============================================================
+# 公开库 .gitignore
+# 注意：几乎所有规则的理由都是「体积 / 可重建 / 环境相关」，
+# 而不是数据合规——本项目全部为模拟数据，无真实个人信息。
+# ============================================================
+
+# --- 第一优先级：绝不允许进入公开仓库 ---
+# 本地真实配置（数据库密码、RAG API Key、AES 密钥）
+src/main/resources/application-local.yml
+src/main/resources/application-local.properties
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml
+/application-local.*
+.env
+.env.*
+!.env.example
+*.env.local
+
+# 密钥与凭证
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+/secrets/
+/credentials/
+service-account*.json
+gcp-key*.json
+.aws/
+.azure/
+.kube/
+config.local.json
+
+# 论文原件（含姓名 / 学号 / 指导教师 / 学校，仅存私有库）
+/docs/thesis/
+
+# --- 构建产物 ---
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+dependency-reduced-pom.xml
+.flattened-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+buildNumber.properties
+.mvn/timing.properties
+
+# --- IDE / 编辑器 / 操作系统 ---
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.vscode/
+!.vscode/extensions.json
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+*.bak
+*.orig
+*.rej
+
+# --- 日志 ---
+*.log
+logs/
+log/
+*.log.*
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# ============================================================
+# AI / Agent / RAG 相关
+# ============================================================
+
+# 本地模型权重（单文件常见 4-8GB，GitHub 单文件硬上限 100MB）
+*.gguf
+*.ggml
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.mlmodel
+*.h5
+*.msgpack
+/models/
+/model-weights/
+/ollama-models/
+/LMStudio/
+/lm-studio/
+.huggingface/
+.cache/huggingface/
+.cache/torch/
+.cache/modelscope/
+
+# 向量库 / 检索索引（二进制，可由语料重建）
+/vectorstore/
+/vector_store/
+/vector-db/
+/vectordb/
+/chroma/
+/chroma_db/
+/qdrant_storage/
+/milvus/
+/weaviate/
+/pgvector/
+/faiss_index/
+/index_store/
+*.faiss
+*.index
+*.ivf
+*.hnsw
+docs.index
+/knowledge_graph/
+
+# AnythingLLM / 本地 RAG 平台运行数据
+/anythingllm/
+/anythingllm-storage/
+/storage/
+/lancedb/
+*.lancedb
+
+# 文件落盘的 AI 缓存 / 会话 / 聊天历史
+/ai-cache/
+.cache/ai/
+/sessions/
+/chat-history/
+/conversations/
+
+# Python 侧（若后续用 LangChain / LlamaIndex 写评测脚本）
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+ENV/
+.conda/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+/mlruns/
+/runs/
+wandb/
+lightning_logs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Prompt 评测 / 数据集（小样例可提交，大语料不入库）
+/datasets/
+/eval-data/
+*.parquet
+*.arrow
+*.jsonl.gz
+*.csv.gz
+
+# 知识库语料（医学指南 PDF：体积大且多受版权保护）
+/docs/rag-corpus/
+/knowledge-base/
+/corpus/
+/kb-data/
+
+# --- 上传 / 导出 / 临时 ---
+/uploads/
+/data/
+/exports/
+temp/
+tmp/
+*.tmp
+
+# --- 前端构建（若后续引入 npm / Vite）---
+node_modules/
+.vite/
+.next/
+.eslintcache
+/dist/

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>项目管理 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .toolbar-content { display: flex; gap: 12px; flex-wrap: wrap; }
+        .filter-input { width: 160px; }
+        .filter-input-sm { width: 140px; }
+        .filter-select { width: 130px; }
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .action-cell { text-align: center; }
+        .item-code { background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+        .category-badge { background: var(--primary-light); color: var(--primary); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="user.html">用户管理</a>
+                <a href="item.html" class="active">项目管理</a>
+                <a href="package.html">套餐管理</a>
+                <a href="capacity-config.html">名额配置</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👤 <strong id="currentUser"></strong></span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>体检项目管理</h2>
+            <p>维护体检项目库及参考指标</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ 新增项目</button>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-content">
+            <input type="text" id="filterItemName" class="form-control filter-input" placeholder="按项目名称搜索">
+            <input type="text" id="filterItemCode" class="form-control filter-input" placeholder="按项目编码搜索">
+            <input type="text" id="filterCategory" class="form-control filter-input-sm" placeholder="按分类筛选">
+            <select id="filterActive" class="form-control filter-select">
+                <option value="">全部状态</option>
+                <option value="1">启用</option>
+                <option value="0">禁用</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadData(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th><th>项目编码</th><th>项目名称</th><th>单位</th>
+                <th>参考范围</th><th>分类</th><th>状态</th><th class="action-cell">操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">新增项目</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="form-group"><label>项目编码</label><input type="text" id="editCode" class="form-control" placeholder="如: XY"></div>
+            <div class="form-group"><label>项目名称</label><input type="text" id="editName" class="form-control" placeholder="如: 血压"></div>
+            <div class="form-group"><label>单位</label><input type="text" id="editUnit" class="form-control" placeholder="如: mmHg"></div>
+            <div class="form-group"><label>参考范围</label><input type="text" id="editRange" class="form-control" placeholder="如: 90-140"></div>
+            <div class="form-group"><label>分类</label><input type="text" id="editCategory" class="form-control" placeholder="如: 一般检查"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button type="button" class="btn btn-success" onclick="saveItem()">保存</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth();
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    let currentPage = 1;
+
+    function buildQuery(page) {
+        const itemName = encodeURIComponent(document.getElementById('filterItemName').value.trim());
+        const itemCode = encodeURIComponent(document.getElementById('filterItemCode').value.trim());
+        const category = encodeURIComponent(document.getElementById('filterCategory').value.trim());
+        const isActive = document.getElementById('filterActive').value;
+        return `/admin/items?page=${page}&size=10&itemName=${itemName}&itemCode=${itemCode}&category=${category}&isActive=${isActive}&sort=id,asc`;
+    }
+
+    async function loadData(page = 1) {
+        currentPage = page;
+        const data = await request(buildQuery(page), 'GET');
+        if (!data) return;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.records.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${item.itemId}</strong></td>
+                <td><span class="item-code">${item.itemCode}</span></td>
+                <td style="font-weight:600;color:var(--text-primary);">${item.itemName}</td>
+                <td>${item.unit || '-'}</td>
+                <td>${item.refRange || '-'}</td>
+                <td><span class="status-badge category-badge">${item.category || '未分类'}</span></td>
+                <td><span class="status-badge ${item.isActive === 1 ? 'status-active' : 'status-inactive'}">${item.isActive === 1 ? '正常' : '禁用'}</span></td>
+                <td class="action-cell">
+                    <button class="btn btn-sm btn-secondary" onclick='editItem(${JSON.stringify(item).replace(/'/g,"&apos;")})'>编辑</button>
+                    <button class="btn btn-sm ${item.isActive === 1 ? 'btn-danger' : 'btn-success'}"
+                        onclick="toggleStatus(${item.itemId},${item.isActive === 1 ? 0 : 1})">
+                        ${item.isActive === 1 ? '禁用' : '启用'}</button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+        renderPagination('#pagination', data.current, data.pages, loadData);
+    }
+
+    function resetFilter() {
+        ['filterItemName','filterItemCode','filterCategory','filterActive'].forEach(id => document.getElementById(id).value = '');
+        loadData(1);
+    }
+
+    function openModal() {
+        document.getElementById('modalTitle').innerText   = '新增项目';
+        document.getElementById('editId').value          = '';
+        document.getElementById('editCode').value        = '';
+        document.getElementById('editCode').disabled     = false;
+        document.getElementById('editName').value        = '';
+        document.getElementById('editUnit').value        = '';
+        document.getElementById('editRange').value       = '';
+        document.getElementById('editCategory').value    = '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function editItem(item) {
+        document.getElementById('modalTitle').innerText   = '编辑项目';
+        document.getElementById('editId').value          = item.itemId;
+        document.getElementById('editCode').value        = item.itemCode;
+        document.getElementById('editCode').disabled     = true;
+        document.getElementById('editName').value        = item.itemName;
+        document.getElementById('editUnit').value        = item.unit     || '';
+        document.getElementById('editRange').value       = item.refRange || '';
+        document.getElementById('editCategory').value    = item.category || '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function saveItem() {
+        const id = document.getElementById('editId').value;
+        const payload = {
+            itemCode: document.getElementById('editCode').value,
+            itemName: document.getElementById('editName').value,
+            unit:     document.getElementById('editUnit').value,
+            refRange: document.getElementById('editRange').value,
+            category: document.getElementById('editCategory').value
+        };
+        if (id) await request(`/admin/items/${id}`, 'PUT', payload);
+        else    await request('/admin/items', 'POST', payload);
+        closeModal();
+        loadData(currentPage);
+    }
+
+    async function toggleStatus(id, newStatus) {
+        await request(`/admin/items/${id}/status?isActive=${newStatus}`, 'PUT');
+        loadData(currentPage);
+    }
+
+    loadData(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+.config-card {
+    background: var(--bg-primary, #fff);
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.config-card h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+}
+
+.total-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.total-row label {
+    font-size: 14px;
+    color: var(--text-secondary, #666);
+    white-space: nowrap;
+}
+
+.split-info {
+    font-size: 13px;
+    color: var(--text-secondary, #888);
+    margin-top: 10px;
+}
+
+.doctor-config-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+
+.doctor-config-table th,
+.doctor-config-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color, #f0f0f0);
+    font-size: 14px;
+    text-align: center;
+}
+
+.doctor-config-table th {
+    background: var(--bg-secondary, #fafafa);
+    font-weight: 600;
+}
+
+.doctor-config-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+}
+
+.sum-row td {
+    font-weight: 700;
+    background: var(--bg-secondary, #fafafa);
+}
+
+.valid-tag {
+    color: #52c41a;
+    font-weight: 600;
+}
+
+.invalid-tag {
+    color: #f5222d;
+    font-weight: 600;
+}
+
+input.num-input {
+    width: 80px;
+    text-align: center;
+}
+
+.flex {
+    display: flex;
+}
+
+.gap-10 {
+    gap: 10px;
+}

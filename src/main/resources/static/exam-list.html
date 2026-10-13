@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>体检记录 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/report.css">
+    <style>
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .toolbar-content { display: flex; gap: 12px; flex-wrap: wrap; }
+        .filter-select { width: 160px; }
+        .filter-input { width: 160px; }
+        .filter-input-lg { width: 200px; }
+        .action-cell { text-align: center; white-space: nowrap; }
+        .id-cell { font-family: monospace; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="doctor-home.html">首页</a>
+                <a href="exam-register.html">体检登记</a>
+                <a href="exam-list.html" class="active">体检记录</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👨‍⚕️ <strong id="currentUser"></strong> | 医生</span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>体检记录列表</h2>
+            <p>查询和管理我的体检记录</p>
+        </div>
+        <a href="exam-register.html" class="btn btn-primary">+ 新增登记</a>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-content">
+            <select id="filterStatus" class="form-control filter-select">
+                <option value="">全部状态</option>
+                <option value="PENDING">待体检</option>
+                <option value="IN_PROGRESS">进行中</option>
+                <option value="LOCKED">已锁定</option>
+                <option value="PUBLISHED">已发布</option>
+            </select>
+            <input type="text" id="filterName" class="form-control filter-input" placeholder="按姓名搜索">
+            <input type="text" id="filterId" class="form-control filter-input-lg" placeholder="按身份证搜索">
+            <button class="btn btn-primary" onclick="loadData(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>单号</th><th>姓名</th><th>身份证号</th><th>手机号</th>
+                <th>套餐</th><th>状态</th><th>登记时间</th><th class="action-cell">操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('DOCTOR');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    const STATUS_LABEL = { PENDING:'待体检', IN_PROGRESS:'进行中', LOCKED:'已锁定', PUBLISHED:'已发布' };
+    let currentPage = 1;
+
+    async function loadData(page = 1) {
+        currentPage = page;
+        const status   = document.getElementById('filterStatus').value;
+        const realName = encodeURIComponent(document.getElementById('filterName').value.trim());
+        const idNumber = encodeURIComponent(document.getElementById('filterId').value.trim());
+        const data = await request(`/doctor/examinations?page=${page}&size=10&status=${status}&realName=${realName}&idNumber=${idNumber}`, 'GET');
+        if (!data) return;
+
+        const tbody = document.getElementById('tableBody');
+        if (!data.records.length) {
+            tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📋</div>暂无体检记录</div></td></tr>';
+        } else {
+            tbody.innerHTML = data.records.map((r, idx) => {
+                const displayNo = (currentPage - 1) * (data.size || 10) + idx + 1;
+                const canInput = r.status === 'PENDING' || r.status === 'IN_PROGRESS';
+                const inputBtn = canInput
+                    ? `<button class="btn btn-sm btn-success" onclick="window.location.href='exam-input.html?examId=${r.examId}'">录入数据</button>`
+                    : `<button class="btn btn-sm btn-secondary" onclick="window.location.href='exam-input.html?examId=${r.examId}'">查看数据</button>`;
+                let reportBtn = '';
+                if (r.status === 'LOCKED')     reportBtn = `<button class="btn btn-sm btn-primary" onclick="window.location.href='report-edit.html?examId=${r.examId}'">撰写报告</button>`;
+                if (r.status === 'PUBLISHED')  reportBtn = `<button class="btn btn-sm btn-secondary" onclick="window.location.href='report-edit.html?examId=${r.examId}'">查看报告</button>`;
+                return `
+                <tr>
+                    <td><strong>#${displayNo}</strong></td>
+                    <td style="font-weight:600;color:var(--text-primary);">${r.realName}</td>
+                    <td class="id-cell">${maskSensitive(r.idNumber)}</td>
+                    <td>${maskSensitive(r.phone)}</td>
+                    <td>${r.packageName || '-'}</td>
+                    <td><span class="status-badge status-active">${STATUS_LABEL[r.status] || r.status}</span></td>
+                    <td>${r.registerTime ? r.registerTime.replace('T',' ').substring(0,16) : ''}</td>
+                    <td class="action-cell">
+                        <button class="btn btn-sm btn-primary" onclick="window.location.href='exam-detail.html?examId=${r.examId}'">查看详情</button>
+                        ${inputBtn}${reportBtn}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        renderPagination('#pagination', data.current, data.pages, loadData);
+    }
+
+    function resetFilter() {
+        ['filterStatus','filterName','filterId'].forEach(id => document.getElementById(id).value = '');
+        loadData(1);
+    }
+
+    loadData(1);
+</script>
+</body>
+</html>

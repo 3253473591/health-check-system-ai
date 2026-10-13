@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>体检名额配置 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/capacity-config.css">
+    <style>
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .header-actions { display: flex; gap: 10px; }
+        .date-selector-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .date-selector-row label {
+            font-weight: 600;
+        }
+        .date-selector-row input[type="date"] {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        .date-note {
+            font-size: 13px;
+            color: #666;
+            margin-left: 10px;
+        }
+        .config-status {
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        .config-status.default {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .config-status.custom {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error-msg {
+            color: var(--danger);
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="user.html">用户管理</a>
+                <a href="item.html">项目管理</a>
+                <a href="package.html">套餐管理</a>
+                <a href="capacity-config.html" class="active">名额配置</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👤 <strong id="currentUser"></strong></span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>体检名额配置</h2>
+            <p>支持配置今日及未来30天内名额（未配置将使用默认100人）</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="resetDefault()">↺ 重置为默认</button>
+            <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
+        </div>
+    </div>
+
+    <div class="date-selector-row">
+        <label>配置日期：</label>
+        <input type="date" id="configDate" onchange="onDateChange()">
+        <span class="date-note">（可选择今天至未来30天内任意日期）</span>
+        <span id="configStatus" class="config-status default">加载中...</span>
+    </div>
+
+    <div class="config-card">
+        <h3>总名额设置</h3>
+        <div class="total-row">
+            <label>当日总名额</label>
+            <input type="number" id="totalCapacity" class="form-control num-input" min="1" value="100" oninput="onTotalChange()">
+            <span class="text-secondary font-14">人</span>
+        </div>
+        <div class="split-info" id="splitInfo">上午名额：50 下午名额：50（系统自动拆分）</div>
+    </div>
+
+    <div class="config-card">
+        <h3>医生名额分配</h3>
+        <div id="doctorTableContainer">
+            <table class="doctor-config-table" id="doctorTable"></table>
+        </div>
+        <div id="errorContainer"></div>
+        <div class="margin-top-20 font-14">
+            上午校验：<span id="morningCheck">-</span>
+            下午校验：<span id="afternoonCheck">-</span>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('ADMIN');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    let configData = null;
+    let currentDate = new Date().toISOString().slice(0, 10);
+
+    function initDatePicker() {
+        const today = new Date();
+        const maxDate = new Date();
+        maxDate.setDate(today.getDate() + 30);
+
+        const dateInput = document.getElementById('configDate');
+        dateInput.min = formatDate(today);
+        dateInput.max = formatDate(maxDate);
+        dateInput.value = currentDate;
+    }
+
+    function formatDate(date) {
+        return date.toISOString().slice(0, 10);
+    }
+
+    async function onDateChange() {
+        currentDate = document.getElementById('configDate').value;
+        await loadConfig();
+    }
+
+    async function loadConfig() {
+        document.getElementById('configStatus').innerText = '加载中...';
+        document.getElementById('configStatus').className = 'config-status default';
+        document.getElementById('errorContainer').innerHTML = '';
+
+        try {
+            const config = await request(`/admin/capacity/config/${currentDate}`, 'GET');
+            if (!config) {
+                throw new Error('获取配置失败');
+            }
+
+            configData = config;
+
+            await checkCustomStatus();
+
+            document.getElementById('totalCapacity').value = config.totalCapacity;
+            updateSplitInfo(config.totalCapacity);
+            renderDoctorTable(config.doctorCapacities);
+            validate();
+
+        } catch (e) {
+            console.error('加载配置失败:', e);
+            document.getElementById('errorContainer').innerHTML =
+                `<div class="error-msg">加载失败：${e.message || '网络错误'}</div>`;
+            document.getElementById('configStatus').innerText = '加载失败';
+            document.getElementById('configStatus').className = 'config-status default';
+        }
+    }
+
+    async function checkCustomStatus() {
+        try {
+            const capacity = await request(`/admin/capacity/${currentDate}`, 'GET');
+            const isDefault = capacity && capacity.total.capacity === 100 && capacity.total.used === 0;
+
+            const statusEl = document.getElementById('configStatus');
+            if (capacity && !isDefault) {
+                statusEl.innerText = '已配置（自定义）';
+                statusEl.className = 'config-status custom';
+            } else {
+                statusEl.innerText = '未配置（默认100人）';
+                statusEl.className = 'config-status default';
+            }
+        } catch (e) {
+            document.getElementById('configStatus').innerText = '状态未知';
+        }
+    }
+
+    function onTotalChange() {
+        const total = parseInt(document.getElementById('totalCapacity').value) || 0;
+        updateSplitInfo(total);
+
+        if (configData && configData.doctorCapacities && configData.doctorCapacities.length > 0) {
+            const { morning, afternoon } = calcSplit(total);
+            const n = configData.doctorCapacities.length;
+
+            configData.doctorCapacities.forEach((doc, i) => {
+                doc.morning = Math.floor(morning / n) + (i < morning % n ? 1 : 0);
+                doc.afternoon = Math.floor(afternoon / n) + (i < afternoon % n ? 1 : 0);
+            });
+
+            renderDoctorTable(configData.doctorCapacities);
+            validate();
+        }
+    }
+
+    function updateSplitInfo(total) {
+        const m = total % 2 === 0 ? total / 2 : Math.floor((total - 1) / 2);
+        document.getElementById('splitInfo').innerText = `上午名额：${m} 下午名额：${total - m}（系统自动拆分）`;
+    }
+
+    function calcSplit(total) {
+        const m = total % 2 === 0 ? total / 2 : Math.floor((total - 1) / 2);
+        return { morning: m, afternoon: total - m };
+    }
+
+    function renderDoctorTable(doctors) {
+        const table = document.getElementById('doctorTable');
+
+        if (!doctors || doctors.length === 0) {
+            table.innerHTML = '<div class="error-msg">暂无医生数据，请检查医生账号是否已创建</div>';
+            return;
+        }
+
+        let html = `<thead><tr><th>医生</th><th>上午名额</th><th>下午名额</th><th>当日小计</th></tr></thead><tbody>`;
+        doctors.forEach(doc => {
+            const mVal = doc.morning || 0;
+            const aVal = doc.afternoon || 0;
+            html += `<tr>
+                <td>${doc.doctorName || '未知'}</td>
+                <td><input type="number" class="form-control num-input morning-input"
+                    data-id="${doc.doctorId}" value="${mVal}" min="0" oninput="validate()"></td>
+                <td><input type="number" class="form-control num-input afternoon-input"
+                    data-id="${doc.doctorId}" value="${aVal}" min="0" oninput="validate()"></td>
+                <td class="subtotal-${doc.doctorId}">${mVal + aVal}</td>
+            </tr>`;
+        });
+        html += `<tr class="sum-row"><td>合计</td><td id="sumMorning">-</td><td id="sumAfternoon">-</td><td id="sumTotal">-</td></tr></tbody>`;
+        table.innerHTML = html;
+
+        table.querySelectorAll('.morning-input, .afternoon-input').forEach(inp => {
+            inp.addEventListener('input', updateSubtotals);
+        });
+        updateSubtotals();
+    }
+
+    function updateSubtotals() {
+        document.querySelectorAll('.morning-input').forEach(inp => {
+            const id = inp.dataset.id;
+            const m = parseInt(inp.value) || 0;
+            const aInput = document.querySelector(`.afternoon-input[data-id="${id}"]`);
+            const a = aInput ? (parseInt(aInput.value) || 0) : 0;
+            const cell = document.querySelector(`.subtotal-${id}`);
+            if (cell) cell.innerText = m + a;
+        });
+
+        const sumM = [...document.querySelectorAll('.morning-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+        const sumA = [...document.querySelectorAll('.afternoon-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+
+        document.getElementById('sumMorning').innerText = sumM;
+        document.getElementById('sumAfternoon').innerText = sumA;
+        document.getElementById('sumTotal').innerText = sumM + sumA;
+    }
+
+    function validate() {
+        const total = parseInt(document.getElementById('totalCapacity').value) || 0;
+        const { morning, afternoon } = calcSplit(total);
+        const sumM = [...document.querySelectorAll('.morning-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+        const sumA = [...document.querySelectorAll('.afternoon-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+
+        const mCheck = document.getElementById('morningCheck');
+        const aCheck = document.getElementById('afternoonCheck');
+
+        if (sumM === morning) {
+            mCheck.innerHTML = `<span class="valid-tag">✔ ${sumM} = ${morning}</span>`;
+        } else {
+            mCheck.innerHTML = `<span class="invalid-tag">✘ 当前 ${sumM}，应为 ${morning}</span>`;
+        }
+
+        if (sumA === afternoon) {
+            aCheck.innerHTML = `<span class="valid-tag">✔ ${sumA} = ${afternoon}</span>`;
+        } else {
+            aCheck.innerHTML = `<span class="invalid-tag">✘ 当前 ${sumA}，应为 ${afternoon}</span>`;
+        }
+    }
+
+    function resetDefault() {
+        if (!configData) return;
+        const total = parseInt(document.getElementById('totalCapacity').value) || 100;
+        const { morning, afternoon } = calcSplit(total);
+        const n = configData.doctorCapacities.length;
+
+        if (n === 0) return;
+
+        configData.doctorCapacities.forEach((doc, i) => {
+            doc.morning = Math.floor(morning / n) + (i < morning % n ? 1 : 0);
+            doc.afternoon = Math.floor(afternoon / n) + (i < afternoon % n ? 1 : 0);
+        });
+        renderDoctorTable(configData.doctorCapacities);
+        validate();
+    }
+
+    async function saveConfig() {
+        const total = parseInt(document.getElementById('totalCapacity').value) || 0;
+        const { morning, afternoon } = calcSplit(total);
+        const sumM = [...document.querySelectorAll('.morning-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+        const sumA = [...document.querySelectorAll('.afternoon-input')].reduce((s,i) => s + (parseInt(i.value)||0), 0);
+
+        if (sumM !== morning || sumA !== afternoon) {
+            showToast(`校验失败：上午需 ${morning} 当前 ${sumM}；下午需 ${afternoon} 当前 ${sumA}`, 'error');
+            return;
+        }
+
+        const doctorCapacities = [...document.querySelectorAll('.morning-input')].map(inp => ({
+            doctorId: parseInt(inp.dataset.id),
+            morning: parseInt(inp.value) || 0,
+            afternoon: parseInt(document.querySelector(`.afternoon-input[data-id="${inp.dataset.id}"]`).value) || 0
+        }));
+
+        const res = await request('/admin/capacity/config', 'POST', {
+            capacityDate: currentDate,
+            totalCapacity: total,
+            doctorCapacities
+        });
+
+        if (res !== null) {
+            showToast('保存成功！', 'success');
+            await checkCustomStatus();
+        }
+    }
+
+    initDatePicker();
+    loadConfig();
+</script>
+</body>
+</html>

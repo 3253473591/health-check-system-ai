@@ -1,0 +1,151 @@
+.report-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+}
+.report-section h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-left: 3px solid var(--primary);
+    padding-left: 10px;
+}
+
+.info-row.flex { display: flex; flex-wrap: wrap; gap: 0 32px; }
+.info-cell.flex-item {
+    min-width: 180px;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.info-cell.flex-item strong { color: var(--text-primary); margin-left: 4px; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.data-table th, .data-table td {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+.data-table th { background: var(--bg-secondary); font-weight: 600; color: var(--text-secondary); }
+
+.abnormal-high  { color: #dc2626; font-weight: 700; }
+.abnormal-low   { color: #2563eb; font-weight: 700; }
+.abnormal-none  { color: var(--success); }
+
+.report-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+    min-height: 120px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+.report-textarea:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+.publish-info { font-size: 14px; color: var(--text-secondary); }
+.publish-info strong { color: var(--text-primary); }
+
+.report-view-title {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    margin: 0 0 4px;
+}
+.report-view-subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 28px;
+}
+
+hr.thick  { border: none; border-top: 2px solid #1a1a2e; margin: 0 0 16px; }
+hr.thin   { border: none; border-top: 1px solid #d1d5db; margin: 12px 0; }
+
+.report-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 0;
+    margin-bottom: 6px;
+}
+.report-info-cell { font-size: 13px; }
+.report-info-cell .label { color: #6b7280; }
+.report-info-cell .val   { font-weight: 600; color: #111827; }
+
+.report-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin: 24px 0 12px;
+    padding-left: 10px;
+    border-left: 3px solid #2563eb;
+}
+
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th, .report-table td { padding: 9px 12px; text-align: left; font-size: 13px; }
+.report-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    border-top: 1px solid #e5e7eb;
+}
+.report-table td { border-bottom: 1px solid #f3f4f6; }
+.report-table .abn-high { color: #dc2626; font-weight: 700; }
+.report-table .abn-low  { color: #2563eb; font-weight: 700; }
+.report-table .abn-ok   { color: #16a34a; }
+
+.report-text-block {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px 16px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+}
+
+.report-sign-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid #d1d5db;
+}
+.report-sign-item { font-size: 13px; color: #374151; }
+.report-sign-item strong { color: #111827; }
+
+.report-loading { text-align: center; padding: 80px 0; color: #9ca3af; }
+
+@media print {
+    body > .action-bar { display: none !important; }
+    body:has(.report-wrap) { background: #fff; }
+    .report-wrap { max-width: 100%; margin: 0; padding: 0; }
+    .report-card {
+        border: none;
+        border-radius: 0;
+        padding: 20mm 18mm;
+        box-shadow: none;
+    }
+    @page { size: A4; margin: 0; }
+    .report-table { page-break-inside: auto; }
+    .report-table tr { page-break-inside: avoid; }
+    a::after { content: none !important; }
+}

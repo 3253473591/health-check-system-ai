@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>报告撰写 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/report.css">
+    <style>
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .page-body { display: flex; gap: 24px; align-items: flex-start; }
+        #mainContent { flex: 1; min-width: 0; max-width: 900px; }
+
+        .ai-sidebar {
+            width: 360px; flex-shrink: 0;
+            background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 14px; box-shadow: 0 4px 20px rgba(37,99,235,.07);
+            overflow: hidden; position: sticky; top: 24px; transition: width .3s ease;
+        }
+        .ai-sidebar.collapsed { width: 52px; }
+        .ai-sidebar-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px;
+            background: linear-gradient(135deg,#2563eb 0%,#06b6d4 100%);
+            cursor: pointer; user-select: none; gap: 8px;
+        }
+        .ai-sidebar-header .header-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        .ai-sidebar-header .ai-icon { font-size: 20px; flex-shrink: 0; }
+        .ai-sidebar-header .header-title { color: #fff; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; }
+        .ai-sidebar.collapsed .header-title,
+        .ai-sidebar.collapsed .toggle-hint { display: none; }
+        .toggle-btn { color: rgba(255,255,255,.85); font-size: 18px; flex-shrink: 0; line-height: 1; transition: transform .3s; }
+        .ai-sidebar.collapsed .toggle-btn { transform: rotate(180deg); }
+        .ai-sidebar-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .ai-sidebar.collapsed .ai-sidebar-body { display: none; }
+        .ai-btn-row { display: flex; gap: 10px; }
+        .ai-btn-row .btn { flex: 1; padding: 10px 12px; font-size: 14px; }
+        .ai-loading { display: none; align-items: center; gap: 10px; color: #2563eb; font-size: 14px; padding: 8px 4px; }
+        .ai-loading.active { display: flex; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ai-output-label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+        .ai-output-box {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 14px; font-size: 13.5px; line-height: 1.75; color: #1e293b;
+            min-height: 120px; max-height: 480px; overflow-y: auto;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .ai-output-box.generating::after { content: '▋'; animation: blink 1s step-start infinite; color: #2563eb; }
+        @keyframes blink { 50% { opacity: 0; } }
+        #btnAdopt:disabled { opacity: .45; cursor: not-allowed; }
+        .ai-tip { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+        .toggle-hint { font-size: 11px; color: rgba(255,255,255,.7); white-space: nowrap; }
+
+        .anomaly-tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+        .a-normal { background: #f6ffed; color: #389e0d; }
+        .a-high { background: #fff1f0; color: #cf1322; }
+        .a-low { background: #e6f7ff; color: #0050b3; }
+        .a-text { background: #fffbe6; color: #874d00; }
+        .a-none { color: #94a3b8; }
+
+        .info-row-flex { display: flex; flex-wrap: wrap; gap: 0 32px; }
+        .info-cell-flex { min-width: 180px; padding: 6px 0; font-size: 14px; color: var(--text-secondary); }
+        .info-cell-flex strong { color: var(--text-primary); margin-left: 4px; }
+
+        @media (max-width: 1024px) {
+            .page-body { flex-direction: column; }
+            .ai-sidebar { width: 100%; position: static; }
+        }
+        .ai-output-box[data-cache="true"] {
+            border: 2px solid #10b981 !important;
+            background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+        }
+        .cache-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="doctor-home.html">首页</a>
+                <a href="exam-register.html">体检登记</a>
+                <a href="exam-list.html">体检记录</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👨‍⚕️ <strong id="currentUser"></strong> | 医生</span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2 id="pageTitle">报告撰写</h2>
+            <p id="pageSubtitle">填写体检结论与健康建议后发布报告</p>
+        </div>
+        <button class="btn btn-secondary" onclick="history.back()">← 返回列表</button>
+    </div>
+
+    <div class="page-body">
+        <div id="mainContent">
+            <div id="readonlyBanner" class="readonly-banner" style="display:none;">
+                ✅ 报告已发布，当前为只读模式，不可修改。
+            </div>
+
+            <div class="report-section">
+                <h3>① 体检者基本信息</h3>
+                <div class="info-row-flex" id="basicInfo">
+                    <div class="info-cell-flex">姓名：<strong id="iName">-</strong></div>
+                    <div class="info-cell-flex">性别：<strong id="iGender">-</strong></div>
+                    <div class="info-cell-flex">年龄：<strong id="iAge">-</strong></div>
+                    <div class="info-cell-flex">身份证：<strong id="iIdNum">-</strong></div>
+                    <div class="info-cell-flex">手机号：<strong id="iPhone">-</strong></div>
+                    <div class="info-cell-flex">套餐：<strong id="iPkg">-</strong></div>
+                </div>
+                <div style="margin-top:10px;font-size:14px;color:var(--text-secondary);">
+                    套餐项目：<div class="tag-list" id="itemTags"></div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>② 体检数据表</h3>
+                <table class="data-table">
+                    <thead><tr><th>项目</th><th>结果</th><th>单位</th><th>参考范围</th><th>异常情况</th></tr></thead>
+                    <tbody id="dataBody"><tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);">加载中...</td></tr></tbody>
+                </table>
+            </div>
+
+            <div class="report-section">
+                <h3>③ 体检结论</h3>
+                <textarea id="conclusion" class="report-textarea" rows="5" placeholder="请填写体检结论..."></textarea>
+            </div>
+
+            <div class="report-section">
+                <h3>④ 健康建议</h3>
+                <textarea id="advice" class="report-textarea" rows="5" placeholder="请填写健康建议..."></textarea>
+            </div>
+
+            <div class="report-section">
+                <h3>⑤ 发布信息</h3>
+                <div class="publish-info">
+                    <div style="padding:4px 0;">发布日期：<strong id="publishTime">（发布后自动填写）</strong></div>
+                    <div style="padding:4px 0;">医生签名：<strong id="doctorSign">-</strong></div>
+                </div>
+            </div>
+
+            <div class="action-bar" id="editBar">
+                <button class="btn btn-secondary" onclick="history.back()">返回</button>
+                <button class="btn btn-primary" onclick="doSave()">💾 保存报告</button>
+                <button class="btn btn-danger" onclick="doPublish()">📢 发布报告</button>
+            </div>
+            <div class="action-bar" id="readonlyBar" style="display:none;">
+                <button class="btn btn-secondary" onclick="history.back()">返回列表</button>
+            </div>
+        </div>
+
+        <div class="ai-sidebar" id="aiSidebar">
+            <div class="ai-sidebar-header" onclick="toggleSidebar()">
+                <div class="header-left">
+                    <span class="ai-icon">🤖</span>
+                    <span class="header-title">AI 辅助生成</span>
+                </div>
+                <span class="toggle-hint">点击折叠</span>
+                <span class="toggle-btn">‹</span>
+            </div>
+            <div class="ai-sidebar-body">
+                <div class="ai-btn-row">
+                    <button class="btn btn-primary" id="btnGenerate" onclick="generateAI()">✨ 生成</button>
+                    <button class="btn btn-success" id="btnAdopt" onclick="adoptAI()" disabled>✅ 采纳</button>
+                </div>
+                <div class="ai-loading" id="aiLoading">
+                    <div class="spinner"></div>
+                    <span>AI 正在生成，请稍候...</span>
+                </div>
+                <div class="ai-output-label">AI 生成内容</div>
+                <div class="ai-output-box" id="aiOutput">（点击「生成」后，AI 输出将显示在此处）</div>
+                <div class="ai-tip">💡 AI 生成内容仅供参考，采纳后请根据实际情况修改完善。</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('DOCTOR');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    const params = new URLSearchParams(window.location.search);
+    const examId = params.get('examId');
+    if (!examId) { showToast('缺少体检单号', 'error'); history.back(); }
+
+    let isPublished = false, aiRawText = '';
+
+    function detectAnomaly(val, ref) {
+        val=(val||'').trim();ref=(ref||'').trim();
+        if(!val||!ref||ref==='-')return{level:'none',label:'—'};
+        const bpRef=ref.match(/^(\d+)-(\d+)\/(\d+)-(\d+)$/),bpVal=val.match(/^(\d+)[\/\\](\d+)$/);
+        if(bpRef&&bpVal){const[,sysLo,sysHi,diaLo,diaHi]=bpRef.map(Number),[,sys,dia]=bpVal.map(Number);if(sys>=sysLo&&sys<=sysHi&&dia>=diaLo&&dia<=diaHi)return{level:'normal',label:'无异常'};return(sys>sysHi||dia>diaHi)?{level:'high',label:'高'}:{level:'low',label:'低'};}
+        const upEx=ref.match(/^[<＜]\s*(\d+\.?\d*)$/),upIn=ref.match(/^[≤⩽]\s*(\d+\.?\d*)$/);
+        if(upEx||upIn){const l=parseFloat((upEx||upIn)[1]),n=parseFloat(val);if(isNaN(n))return{level:'none',label:'—'};return(upEx?n<l:n<=l)?{level:'normal',label:'无异常'}:{level:'high',label:'高'};}
+        const loEx=ref.match(/^[>＞]\s*(\d+\.?\d*)$/),loIn=ref.match(/^[≥⩾]\s*(\d+\.?\d*)$/);
+        if(loEx||loIn){const l=parseFloat((loEx||loIn)[1]),n=parseFloat(val);if(isNaN(n))return{level:'none',label:'—'};return(loEx?n>l:n>=l)?{level:'normal',label:'无异常'}:{level:'low',label:'低'};}
+        const rng=ref.match(/^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)$/);
+        if(rng){const lo=parseFloat(rng[1]),hi=parseFloat(rng[2]),n=parseFloat(val);if(isNaN(n))return{level:'none',label:'—'};if(n<lo)return{level:'low',label:'低'};if(n>hi)return{level:'high',label:'高'};return{level:'normal',label:'无异常'};}
+        if(!/\d/.test(ref))return val===ref?{level:'normal',label:'无异常'}:{level:'text',label:'异常'};
+        return{level:'none',label:'—'};
+    }
+    function anomalyCell(val,ref){
+        const{level,label}=detectAnomaly(val,ref);
+        const cls={normal:'a-normal',high:'a-high',low:'a-low',text:'a-text',none:'a-none'}[level]||'a-none';
+        return`<span class="anomaly-tag ${cls}">${label}</span>`;
+    }
+
+    async function init() {
+        const d = await request(`/doctor/examinations/${examId}/report`, 'GET');
+        if (!d) return;
+        isPublished = d.status === 'PUBLISHED';
+
+        document.getElementById('iName').innerText    = d.realName  || '-';
+        document.getElementById('iGender').innerText  = d.gender    || '-';
+        document.getElementById('iAge').innerText     = d.age ? d.age+' 岁' : '-';
+        document.getElementById('iIdNum').innerText   = maskSensitive(d.idNumber);
+        document.getElementById('iPhone').innerText   = maskSensitive(d.phone) || '未填写';
+        document.getElementById('iPkg').innerText     = d.packageName || '-';
+        document.getElementById('doctorSign').innerText = d.doctorSign || localStorage.getItem('realName') || '-';
+
+        const tagContainer = document.getElementById('itemTags');
+        tagContainer.innerHTML = '';
+        (d.packageItemNames||[]).forEach(name => {
+            const span = document.createElement('span'); span.className='tag'; span.innerText=name; tagContainer.appendChild(span);
+        });
+        if (!d.packageItemNames||!d.packageItemNames.length)
+            tagContainer.innerHTML = '<span style="color:var(--text-tertiary);">暂无项目信息</span>';
+
+        const tbody = document.getElementById('dataBody');
+        tbody.innerHTML = (!d.dataTable||!d.dataTable.length)
+            ? '<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);">暂无体检数据</td></tr>'
+            : d.dataTable.map(row=>`<tr>
+                <td style="font-weight:600;">${row.itemName}</td>
+                <td>${row.itemValue}</td>
+                <td>${row.unit||'-'}</td>
+                <td style="color:var(--text-secondary);">${row.refRange||'-'}</td>
+                <td>${anomalyCell(row.itemValue,row.refRange)}</td>
+            </tr>`).join('');
+
+        document.getElementById('conclusion').value = d.conclusion || '';
+        document.getElementById('advice').value     = d.advice     || '';
+        if (d.publishTime) document.getElementById('publishTime').innerText = d.publishTime;
+
+        if (isPublished) setReadonly();
+    }
+
+    function setReadonly() {
+        document.getElementById('conclusion').disabled          = true;
+        document.getElementById('advice').disabled              = true;
+        document.getElementById('readonlyBanner').style.display = 'block';
+        document.getElementById('editBar').style.display        = 'none';
+        document.getElementById('readonlyBar').style.display    = 'flex';
+        document.getElementById('pageTitle').innerText          = '体检报告查看';
+        document.getElementById('pageSubtitle').innerText       = '报告已发布，仅允许查看';
+        document.getElementById('btnGenerate').disabled         = true;
+        document.getElementById('btnAdopt').disabled            = true;
+    }
+
+    function toggleSidebar() {
+        const sb=document.getElementById('aiSidebar'), hint=sb.querySelector('.toggle-hint');
+        sb.classList.toggle('collapsed');
+        hint.textContent = sb.classList.contains('collapsed') ? '点击展开' : '点击折叠';
+    }
+
+    function generateAI() {
+        const outputBox=document.getElementById('aiOutput'), loading=document.getElementById('aiLoading');
+        const btnGen=document.getElementById('btnGenerate'), btnAdopt=document.getElementById('btnAdopt');
+        aiRawText=''; outputBox.textContent=''; outputBox.classList.add('generating');
+        loading.classList.add('active'); btnGen.disabled=true; btnAdopt.disabled=true;
+        fetchSSE(`/api/doctor/ai/generate-rag/${examId}`, localStorage.getItem('token')||'', outputBox, loading, btnGen, btnAdopt);
+    }
+
+    function finishGenerate(outputBox, loading, btnGen, btnAdopt, isError) {
+        outputBox.classList.remove('generating');
+        loading.classList.remove('active');
+        btnGen.disabled = false;
+        if (!isError && aiRawText.trim()) {
+            btnAdopt.disabled = false;
+        }
+    }
+
+    async function fetchSSE(url, token, outputBox, loading, btnGen, btnAdopt) {
+        try {
+            const resp = await fetch(url, {headers:{'Authorization':token}});
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const reader=resp.body.getReader(), decoder=new TextDecoder('utf-8');
+            let buf='';
+            while (true) {
+                const {done,value} = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, {stream:true});
+                const parts = buf.split('\n\n'); buf = parts.pop();
+                for (const part of parts) {
+                    let evName='', evData='';
+                    const dataLines = [];
+                    for (const line of part.split('\n')) {
+                        if (line.startsWith('event:')) evName = line.slice(6).trim();
+                        else if (line.startsWith('data:')) dataLines.push(line.slice(5));
+                    }
+                    evData = dataLines.join('\n');
+                    if (evName === 'token') {
+                        const raw = evData.startsWith(' ') ? evData.slice(1) : evData;
+                        aiRawText += raw;
+                        outputBox.textContent = aiRawText;
+                        outputBox.scrollTop = outputBox.scrollHeight;
+                    }
+                    else if (evName==='done')  {
+                        finishGenerate(outputBox,loading,btnGen,btnAdopt);
+                        return;
+                    }
+                    else if (evName==='error') {
+                        outputBox.textContent='❌ '+(evData.startsWith(' ')?evData.slice(1):evData);
+                        finishGenerate(outputBox,loading,btnGen,btnAdopt,true);
+                        return;
+                    }
+                }
+            }
+            finishGenerate(outputBox,loading,btnGen,btnAdopt);
+        } catch (e) {
+            outputBox.textContent = '❌ 请求失败：'+e.message;
+            finishGenerate(outputBox,loading,btnGen,btnAdopt,true);
+        }
+    }
+
+    function adoptAI() {
+        if (!aiRawText.trim()) return;
+
+        let cleanText = aiRawText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+        let cm = cleanText.match(/【体检结论】\s*([\s\S]*?)(?=【健康建议】|$)/);
+        let am = cleanText.match(/【健康建议】\s*([\s\S]*?)$/);
+
+        if (!cm) {
+            cm = cleanText.match(/一、体检结论\s*([\s\S]*?)(?=二、健康建议|$)/i);
+        }
+        if (!am) {
+            am = cleanText.match(/二、健康建议\s*([\s\S]*?)$/i);
+        }
+
+        document.getElementById('conclusion').value = cm ? cm[1].trim() : cleanText;
+        document.getElementById('advice').value = am ? am[1].trim() : '';
+
+        ['conclusion', 'advice'].forEach(id => {
+            const el = document.getElementById(id);
+            el.style.borderColor = '#10b981';
+            el.style.boxShadow = '0 0 0 3px rgba(16,185,129,.15)';
+            setTimeout(() => {
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+            }, 2000);
+        });
+
+        showToast('已采纳 AI 内容，请核对修改', 'success');
+    }
+
+    async function doSave() {
+        const conclusion=document.getElementById('conclusion').value.trim();
+        const advice    =document.getElementById('advice').value.trim();
+        if (!conclusion) { showToast('请填写体检结论', 'warn'); return; }
+        if (!advice)     { showToast('请填写健康建议', 'warn'); return; }
+        const ok = await request(`/doctor/examinations/${examId}/report/save`, 'POST', {conclusion, advice});
+        if (ok !== null) showToast('保存成功！', 'success');
+    }
+
+    async function doPublish() {
+        const conclusion=document.getElementById('conclusion').value.trim();
+        const advice    =document.getElementById('advice').value.trim();
+        if (!conclusion) { showToast('请填写体检结论', 'warn'); return; }
+        if (!advice)     { showToast('请填写健康建议', 'warn'); return; }
+        const ok = await showConfirm('发布后报告不可修改，确认发布吗？', '确认发布', '📢');
+        if (!ok) return;
+        const res = await request(`/doctor/examinations/${examId}/report/publish`, 'PUT', {conclusion, advice});
+        if (res) {
+            showToast('报告已发布！', 'success');
+            document.getElementById('publishTime').innerText  = res.publishTime;
+            document.getElementById('doctorSign').innerText   = res.doctorSign;
+            setReadonly();
+            isPublished = true;
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

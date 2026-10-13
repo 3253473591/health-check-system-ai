@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体检名额查询 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/capacity.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <style>
+        .date-selector {
+            margin: 20px auto;
+            max-width: 400px;
+            text-align: center;
+        }
+        .date-selector input {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 200px;
+        }
+        .date-label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .quick-links {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .quick-links a {
+            color: var(--primary);
+            margin: 0 8px;
+            cursor: pointer;
+        }
+        .quick-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="capacity-page">
+<div class="capacity-wrapper">
+    <div class="page-card">
+        <div class="card-header">
+            🏥 体检名额查询
+            <div class="sub">支持查询今日及未来30天内名额</div>
+        </div>
+
+        <div class="date-selector">
+            <span class="date-label">选择日期：</span>
+            <input type="date" id="dateInput" onchange="onDateChange()">
+            <div class="quick-links">
+                <a onclick="setToday()">今天</a> |
+                <a onclick="setTomorrow()">明天</a> |
+                <a onclick="setDayAfter()">后天</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingTip" class="loading-tip">数据加载中...</div>
+    <div id="content" class="content-hidden">
+
+        <div class="page-card">
+            <div class="card-header card-header-secondary">
+                <span id="dateLabel"></span> 剩余名额
+            </div>
+            <div class="stat-grid" id="totalGrid"></div>
+            <div class="slot-row" id="slotRow"></div>
+        </div>
+
+        <div class="page-card">
+            <div class="card-header card-header-secondary">医生剩余名额</div>
+            <table class="doctor-table" id="doctorTable"></table>
+        </div>
+    </div>
+
+    <div class="back-link">
+        <a href="login.html">返回首页</a>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    function initDatePicker() {
+        const today = new Date();
+        const maxDate = new Date();
+        maxDate.setDate(today.getDate() + 30);
+
+        const dateInput = document.getElementById('dateInput');
+        dateInput.min = formatDate(today);
+        dateInput.max = formatDate(maxDate);
+        dateInput.value = formatDate(today);
+    }
+
+    function formatDate(date) {
+        return date.toISOString().slice(0, 10);
+    }
+
+    function setToday() {
+        document.getElementById('dateInput').value = formatDate(new Date());
+        loadCapacity();
+    }
+
+    function setTomorrow() {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        document.getElementById('dateInput').value = formatDate(d);
+        loadCapacity();
+    }
+
+    function setDayAfter() {
+        const d = new Date();
+        d.setDate(d.getDate() + 2);
+        document.getElementById('dateInput').value = formatDate(d);
+        loadCapacity();
+    }
+
+    function onDateChange() {
+        loadCapacity();
+    }
+
+    async function loadCapacity() {
+        const date = document.getElementById('dateInput').value;
+        if (!date) return;
+
+        document.getElementById('loadingTip').style.display = 'block';
+        document.getElementById('content').style.display = 'none';
+        document.getElementById('loadingTip').innerText = '数据加载中...';
+
+        try {
+            const res  = await fetch(`/api/public/capacity/${date}`);
+            const json = await res.json();
+            if (json.code !== 200) { showError(json.msg); return; }
+            render(json.data);
+        } catch (e) {
+            showError('网络错误，请稍后重试');
+        }
+    }
+
+    function colorClass(remaining, capacity) {
+        if (capacity <= 0) return 'remain-full';
+        const r = remaining / capacity;
+        return r > 0.3 ? 'remain-ok' : r > 0 ? 'remain-warn' : 'remain-full';
+    }
+
+    function render(d) {
+        document.getElementById('dateLabel').innerText = d.date;
+        document.getElementById('loadingTip').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        document.getElementById('totalGrid').innerHTML = `
+            <div class="stat-cell">
+                <div class="stat-label">总剩余</div>
+                <div class="stat-value ${d.total.remaining===0?'danger':''}">${d.total.remaining}</div>
+                <div class="stat-total">/ ${d.total.capacity} 名额</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">上午剩余</div>
+                <div class="stat-value ${d.morning.remaining===0?'danger':d.morning.remaining<10?'warn':''}">${d.morning.remaining}</div>
+                <div class="stat-total">/ ${d.morning.capacity} 名额</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">下午剩余</div>
+                <div class="stat-value ${d.afternoon.remaining===0?'danger':d.afternoon.remaining<10?'warn':''}">${d.afternoon.remaining}</div>
+                <div class="stat-total">/ ${d.afternoon.capacity} 名额</div>
+            </div>`;
+
+        document.getElementById('slotRow').innerHTML = `
+            <div class="slot-card">
+                <div class="slot-title">🌅 上午时段</div>
+                <div class="slot-nums">${d.morning.remaining}<span>/ ${d.morning.capacity}</span></div>
+                <div class="slot-range">${d.morning.timeRange} 已登记 ${d.morning.used} 人</div>
+            </div>
+            <div class="slot-card">
+                <div class="slot-title">🌇 下午时段</div>
+                <div class="slot-nums">${d.afternoon.remaining}<span>/ ${d.afternoon.capacity}</span></div>
+                <div class="slot-range">${d.afternoon.timeRange} 已登记 ${d.afternoon.used} 人</div>
+            </div>`;
+
+        const table = document.getElementById('doctorTable');
+        let html = `<thead><tr>
+            <th>医生</th>
+            <th>上午剩余</th><th>上午已登/总</th>
+            <th>下午剩余</th><th>下午已登/总</th>
+        </tr></thead><tbody>`;
+        (d.doctorList||[]).forEach(doc => {
+            const mc=colorClass(doc.morning.remaining,doc.morning.capacity);
+            const ac=colorClass(doc.afternoon.remaining,doc.afternoon.capacity);
+            html += `<tr>
+                <td>${doc.doctorName}</td>
+                <td><span class="remain-badge ${mc}">${doc.morning.remaining}</span></td>
+                <td class="text-secondary">${doc.morning.used} / ${doc.morning.capacity}</td>
+                <td><span class="remain-badge ${ac}">${doc.afternoon.remaining}</span></td>
+                <td class="text-secondary">${doc.afternoon.used} / ${doc.afternoon.capacity}</td>
+            </tr>`;
+        });
+        html += '</tbody>';
+        table.innerHTML = html;
+    }
+
+    function showError(msg) {
+        document.getElementById('loadingTip').innerText = '加载失败：' + msg;
+    }
+
+    initDatePicker();
+    loadCapacity();
+</script>
+</body>
+</html>

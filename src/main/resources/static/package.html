@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>套餐管理 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .toolbar-content { display: flex; gap: 12px; flex-wrap: wrap; }
+        .filter-input { width: 200px; }
+        .filter-select { width: 130px; }
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .action-cell { text-align: center; }
+        .price-cell { color: var(--success); font-weight: 700; }
+        .config-modal { width: 600px; }
+        .items-container { max-height: 400px; overflow-y: auto; }
+        .item-checkbox small { color: var(--text-tertiary); margin-left: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="user.html">用户管理</a>
+                <a href="item.html">项目管理</a>
+                <a href="package.html" class="active">套餐管理</a>
+                <a href="capacity-config.html">名额配置</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👤 <strong id="currentUser"></strong></span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>体检套餐管理</h2>
+            <p>配置体检套餐及包含项目</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ 新增套餐</button>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-content">
+            <input type="text" id="filterPkgName" class="form-control filter-input" placeholder="按套餐名称搜索">
+            <select id="filterActive" class="form-control filter-select">
+                <option value="">全部状态</option>
+                <option value="1">启用</option>
+                <option value="0">停用</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadData(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th><th>套餐名称</th><th>价格</th><th>描述</th><th>状态</th><th class="action-cell">操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">新增套餐</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="form-group"><label>套餐名称</label><input type="text" id="editName" class="form-control" placeholder="请输入套餐名称"></div>
+            <div class="form-group"><label>价格 (¥)</label><input type="number" id="editPrice" class="form-control" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label>描述</label><textarea id="editDesc" class="form-control" rows="3" placeholder="请输入套餐描述"></textarea></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button type="button" class="btn btn-success" onclick="savePackage()">保存</button>
+        </div>
+    </div>
+</div>
+
+<div id="configModal" class="modal">
+    <div class="modal-content config-modal">
+        <div class="modal-header">
+            <h3>配置套餐项目</h3>
+            <span class="close" onclick="document.getElementById('configModal').style.display='none'">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:16px;color:var(--text-secondary);">当前套餐: <strong id="configPkgName" style="color:var(--primary);font-size:18px;"></strong></p>
+            <div class="form-group">
+                <label>选择包含项目</label>
+                <div id="itemsContainer" class="item-checkbox-group items-container"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('configModal').style.display='none'">取消</button>
+            <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth();
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    let currentPage = 1, allItems = [], currentConfigPkgId = null;
+
+    async function initItems() {
+        const data = await request('/admin/items?page=1&size=100', 'GET');
+        if (data) allItems = data.records;
+    }
+    initItems();
+
+    function buildQuery(page) {
+        const pkgName  = encodeURIComponent(document.getElementById('filterPkgName').value.trim());
+        const isActive = document.getElementById('filterActive').value;
+        return `/admin/packages?page=${page}&size=10&packageName=${pkgName}&isActive=${isActive}&sort=id,asc`;
+    }
+
+    async function loadData(page = 1) {
+        currentPage = page;
+        const data = await request(buildQuery(page), 'GET');
+        if (!data) return;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.records.forEach(pkg => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${pkg.packageId}</strong></td>
+                <td style="font-weight:600;color:var(--text-primary);">${pkg.packageName}</td>
+                <td class="price-cell">¥${pkg.price}</td>
+                <td>${pkg.description || '-'}</td>
+                <td><span class="status-badge ${pkg.isActive === 1 ? 'status-active' : 'status-inactive'}">${pkg.isActive === 1 ? '正常' : '停用'}</span></td>
+                <td class="action-cell">
+                    <button class="btn btn-sm btn-primary" onclick="openConfig(${pkg.packageId},'${pkg.packageName}')">配置项目</button>
+                    <button class="btn btn-sm btn-secondary" onclick='editPackage(${JSON.stringify(pkg).replace(/'/g,"&apos;")})'>编辑</button>
+                    <button class="btn btn-sm ${pkg.isActive === 1 ? 'btn-danger' : 'btn-success'}"
+                        onclick="toggleStatus(${pkg.packageId},${pkg.isActive === 1 ? 0 : 1})">
+                        ${pkg.isActive === 1 ? '停用' : '启用'}</button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+        renderPagination('#pagination', data.current, data.pages, loadData);
+    }
+
+    function resetFilter() {
+        document.getElementById('filterPkgName').value = '';
+        document.getElementById('filterActive').value  = '';
+        loadData(1);
+    }
+
+    function openModal() {
+        document.getElementById('modalTitle').innerText   = '新增套餐';
+        document.getElementById('editId').value          = '';
+        document.getElementById('editName').value        = '';
+        document.getElementById('editPrice').value       = '';
+        document.getElementById('editDesc').value        = '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function editPackage(pkg) {
+        document.getElementById('modalTitle').innerText   = '编辑套餐';
+        document.getElementById('editId').value          = pkg.packageId;
+        document.getElementById('editName').value        = pkg.packageName;
+        document.getElementById('editPrice').value       = pkg.price;
+        document.getElementById('editDesc').value        = pkg.description || '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function savePackage() {
+        const id = document.getElementById('editId').value;
+        const payload = {
+            packageName: document.getElementById('editName').value,
+            price:       document.getElementById('editPrice').value,
+            description: document.getElementById('editDesc').value
+        };
+        if (id) await request(`/admin/packages/${id}`, 'PUT', payload);
+        else    await request('/admin/packages', 'POST', payload);
+        closeModal();
+        loadData(currentPage);
+    }
+
+    async function toggleStatus(id, newStatus) {
+        await request(`/admin/packages/${id}/status?isActive=${newStatus}`, 'PUT');
+        loadData(currentPage);
+    }
+
+    async function openConfig(pkgId, pkgName) {
+        currentConfigPkgId = pkgId;
+        document.getElementById('configPkgName').innerText = pkgName;
+        const container = document.getElementById('itemsContainer');
+        const selectedItems = await request(`/admin/packages/${pkgId}/items`, 'GET');
+        const selectedIds   = selectedItems ? selectedItems.map(i => i.itemId) : [];
+        container.innerHTML = '';
+        if (!allItems.length) await initItems();
+        allItems.filter(i => i.isActive === 1).forEach(item => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label class="item-checkbox">
+                    <input type="checkbox" value="${item.itemId}" ${selectedIds.includes(item.itemId) ? 'checked' : ''}>
+                    <span>${item.itemName}</span>
+                    <small>(${item.itemCode})</small>
+                </label>`;
+            container.appendChild(div);
+        });
+        document.getElementById('configModal').style.display = 'block';
+    }
+
+    async function saveConfig() {
+        const ids = Array.from(document.querySelectorAll('#itemsContainer input[type="checkbox"]:checked'))
+            .map(cb => parseInt(cb.value));
+        await request(`/admin/packages/${currentConfigPkgId}/items`, 'POST', { itemIds: ids });
+        document.getElementById('configModal').style.display = 'none';
+    }
+
+    loadData(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>体检详情 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/report.css">
+    <style>
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .detail-card { padding: 32px; }
+        .detail-card h3 { margin: 0 0 24px; font-size: 18px; border-bottom: 2px solid var(--border); padding-bottom: 12px; }
+        .info-field { display: flex; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+        .info-label { width: 110px; color: var(--text-secondary); font-size: 14px; flex-shrink: 0; }
+        .info-value { color: var(--text-primary); font-weight: 500; }
+        .info-value code { font-family: monospace; }
+        .loading-text { color: var(--text-tertiary); }
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="doctor-home.html">首页</a>
+                <a href="exam-register.html">体检登记</a>
+                <a href="exam-list.html">体检记录</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👨‍⚕️ <strong id="currentUser"></strong> | 医生</span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2>体检记录详情</h2>
+            <p>查看体检登记完整信息</p>
+        </div>
+        <button class="btn btn-secondary" onclick="history.back()">← 返回列表</button>
+    </div>
+
+    <div class="detail-grid">
+        <div class="table-container detail-card">
+            <h3>👤 基本信息</h3>
+            <div id="basicInfo" class="loading-text">加载中...</div>
+        </div>
+        <div class="table-container detail-card">
+            <h3>📋 体检信息</h3>
+            <div id="examInfo" class="loading-text">加载中...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('DOCTOR');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    const STATUS_LABEL = { PENDING:'待体检', IN_PROGRESS:'进行中', LOCKED:'已锁定', PUBLISHED:'已发布' };
+
+    function field(label, value) {
+        return `<div class="info-field">
+            <span class="info-label">${label}</span>
+            <span class="info-value">${value || '-'}</span>
+        </div>`;
+    }
+
+    async function loadDetail() {
+        const examId = new URLSearchParams(window.location.search).get('examId');
+        if (!examId) { showToast('缺少体检单号', 'error'); history.back(); return; }
+        const d = await request(`/doctor/examinations/${examId}`, 'GET');
+        if (!d) return;
+
+        document.getElementById('basicInfo').innerHTML =
+            field('体检者姓名', `<strong style="font-size:16px;">${d.realName}</strong>`) +
+            field('身份证号', `<code>${maskSensitive(d.idNumber)}</code>`) +
+            field('手机号', maskSensitive(d.phone) || '未填写');
+
+        document.getElementById('examInfo').innerHTML =
+            field('体检单号', `<strong>#${d.examId}</strong>`) +
+            field('体检套餐', d.packageName) +
+            field('套餐价格', d.packagePrice != null ? `¥${d.packagePrice}` : '-') +
+            field('当前状态', `<span class="status-badge status-active">${STATUS_LABEL[d.status] || d.status}</span>`) +
+            field('登记医生', d.doctorName) +
+            field('登记时间', d.registerTime ? d.registerTime.replace('T',' ').substring(0,19) : '-');
+    }
+
+    loadDetail();
+</script>
+</body>
+</html>

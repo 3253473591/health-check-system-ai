@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC
+        "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lqx.health_check_system.mapper.PackageItemMapper">
+
+    <select id="selectItemIdsByPackageId"
+            resultType="java.lang.Long">
+        SELECT item_id FROM package_item
+        WHERE package_id = #{packageId}
+    </select>
+</mapper>

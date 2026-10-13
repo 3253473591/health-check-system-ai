@@ -1,0 +1,702 @@
+@media (max-width: 768px) {
+    body:has(.query-main) {
+        font-size: 16px;
+    }
+
+    .query-main {
+        max-width: 100%;
+        margin: 24px auto;
+        padding: 0 12px;
+    }
+
+    .query-card {
+        padding: 24px 20px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+    }
+
+    .query-card-title {
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+
+    .query-form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .query-form-group {
+        min-width: 100%;
+    }
+
+    .query-form-control {
+        font-size: 16px;
+        padding: 12px 14px;
+        height: 48px;
+    }
+
+    .query-btn-row {
+        margin-top: 24px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .query-btn-row .btn {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        height: 48px;
+    }
+
+    #resultCard {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #resultCard table {
+        min-width: 600px;
+        font-size: 14px;
+    }
+
+    #resultCard th,
+    #resultCard td {
+        padding: 12px 8px;
+        white-space: nowrap;
+    }
+
+    body:has(.report-wrap) > .action-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        padding: 12px 16px;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        border-bottom: none;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    body:has(.report-wrap) > .action-bar .brand {
+        display: none;
+    }
+
+    body:has(.report-wrap) > .action-bar .btn {
+        flex: 1;
+        padding: 14px 20px;
+        font-size: 15px;
+        height: 48px;
+        border-radius: 8px;
+    }
+
+    body:has(.report-wrap) > .action-bar .btn-secondary {
+        order: 1;
+    }
+    body:has(.report-wrap) > .action-bar .btn-primary {
+        order: 2;
+    }
+
+    .report-wrap {
+        max-width: 100%;
+        margin: 16px auto;
+        padding: 0 12px 80px;
+    }
+
+    .report-card {
+        padding: 24px 20px;
+        border-radius: 8px;
+    }
+
+    .report-view-title {
+        font-size: 20px;
+        letter-spacing: 0.08em;
+    }
+
+    .report-view-subtitle {
+        font-size: 12px;
+        margin-bottom: 20px;
+    }
+
+    .report-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px 4px;
+    }
+
+    .report-info-cell {
+        font-size: 13px;
+    }
+
+    .report-section:has(.report-table) {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 16px;
+    }
+
+    .report-table {
+        min-width: 500px;
+        font-size: 13px;
+    }
+
+    .report-table th,
+    .report-table td {
+        padding: 8px;
+        white-space: nowrap;
+    }
+
+    .report-tag-row {
+        gap: 4px;
+    }
+
+    .report-tag {
+        font-size: 11px;
+        padding: 2px 6px;
+    }
+
+    .report-text-block {
+        font-size: 14px;
+        padding: 12px;
+        line-height: 1.6;
+    }
+
+    .report-sign-row {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+        margin-top: 24px;
+    }
+
+    .header {
+        padding: 0 16px;
+        height: 48px;
+    }
+
+    .header-brand {
+        font-size: 16px;
+    }
+
+    .header-sub {
+        font-size: 12px;
+    }
+
+    .tip {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 375px) {
+    .report-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-card {
+        padding: 20px 16px;
+    }
+
+    .report-table th,
+    .report-table td {
+        font-size: 12px;
+        padding: 6px;
+    }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+    body:has(.report-wrap) > .action-bar {
+        position: relative;
+        bottom: auto;
+        box-shadow: none;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .report-wrap {
+        padding-bottom: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    body:has(.login-container) {
+        background: linear-gradient(135deg, #0c4a6e 0%, #075985 50%, #0369a1 100%);
+        padding: 0 16px;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 360px;
+        padding: 32px 24px;
+        border-radius: 16px;
+    }
+
+    .login-container h2 {
+        font-size: 24px;
+    }
+
+    .login-container .subtitle {
+        font-size: 13px;
+        margin-bottom: 24px;
+    }
+
+    .login-container .form-group {
+        margin-bottom: 20px;
+    }
+
+    .login-container .form-control {
+        font-size: 16px;
+        padding: 14px 16px;
+        height: 48px;
+    }
+
+    .login-container .btn-lg {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        height: 48px;
+        margin-top: 8px;
+    }
+
+    .login-container .query-entry {
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        justify-content: center;
+    }
+
+    .login-container .query-entry-btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        background: transparent;
+        border: 1px solid var(--primary);
+        color: var(--primary);
+        border-radius: var(--radius);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .login-container .query-entry-btn:hover {
+        background: var(--primary-light);
+    }
+
+    .login-container .query-link {
+        display: flex;
+        flex: 1;
+        margin-top: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+        text-decoration: none;
+        padding: 12px;
+        border-radius: var(--radius);
+        transition: all 0.2s;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        line-height: 1.3;
+    }
+
+    .login-container .query-link:hover {
+        color: var(--primary);
+        background: var(--primary-light);
+    }
+}
+
+@media (max-width: 375px) {
+    .login-container {
+        padding: 28px 20px;
+    }
+
+    .login-container h2 {
+        font-size: 22px;
+    }
+
+    .login-container .query-entry {
+        gap: 10px;
+    }
+
+    .login-container .query-link {
+        font-size: 13px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.capacity-page {
+        background: var(--bg-secondary);
+    }
+
+    .capacity-wrapper {
+        max-width: 100%;
+        margin: 16px auto;
+        padding: 0 12px;
+    }
+
+    .page-card {
+        border-radius: 10px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+
+    .card-header {
+        padding: 16px 18px;
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .card-header .sub {
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .card-header-secondary {
+        padding: 12px 18px;
+        font-size: 14px;
+    }
+
+    .stat-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .stat-cell {
+        padding: 16px 6px;
+        border-right: 1px solid var(--border-color, #eee);
+    }
+
+    .stat-cell:last-child {
+        border-right: none;
+    }
+
+    .stat-value {
+        font-size: 22px;
+        font-weight: 800;
+    }
+
+    .stat-label, .stat-total {
+        font-size: 11px;
+    }
+
+    .slot-row {
+        flex-direction: column;
+        gap: 10px;
+        padding: 0 12px 12px;
+    }
+
+    .slot-card {
+        padding: 12px 14px;
+    }
+
+    .slot-nums {
+        font-size: 20px;
+    }
+
+    .slot-nums span {
+        font-size: 12px;
+    }
+
+    .slot-range {
+        font-size: 11px;
+        margin-top: 2px;
+    }
+
+    .doctor-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: 13px;
+        border-collapse: collapse;
+    }
+
+    .doctor-table thead,
+    .doctor-table tbody {
+        display: table;
+        width: 100%;
+        min-width: 600px;
+    }
+
+    .doctor-table th,
+    .doctor-table td {
+        padding: 10px 8px;
+        white-space: nowrap;
+    }
+
+    .doctor-table td:first-child {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .remain-badge {
+        padding: 2px 8px;
+        font-size: 13px;
+    }
+
+    .back-link {
+        margin: 16px 0 32px;
+    }
+
+    .back-link a {
+        display: inline-block;
+        padding: 10px 20px;
+        background: var(--primary-light, #dbeafe);
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+    }
+}
+
+@media (max-width: 375px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+        border-bottom: 1px solid var(--border-color, #eee);
+    }
+
+    .stat-cell {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color, #eee);
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    .stat-cell:last-child {
+        border-bottom: none;
+    }
+
+    .stat-value {
+        font-size: 18px;
+    }
+
+    .stat-label {
+        margin-bottom: 0;
+    }
+
+    .stat-total {
+        display: none;
+    }
+}
+
+
+/* ============================================
+   HR Home 移动端适配
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* HR 首页容器调整 */
+    body:has(.hr-card) .container {
+        padding: 16px;
+    }
+
+    /* 卡片样式优化 */
+    .hr-card {
+        padding: 20px 16px;
+        margin-bottom: 16px;
+        border-radius: 10px;
+    }
+
+    .hr-card h3 {
+        font-size: 15px;
+        margin-bottom: 14px;
+        padding-left: 8px;
+    }
+
+    /* 医生选择行 - 垂直布局 */
+    .doctor-select-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .doctor-select-row label {
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .doctor-select-row select {
+        max-width: 100%;
+        width: 100%;
+        height: 44px;
+        font-size: 15px;
+        padding: 10px 14px;
+    }
+
+    /* 上传区域调整 */
+    .upload-area {
+        padding: 24px 16px;
+        margin-top: 16px !important;
+    }
+
+    .upload-area .upload-icon {
+        font-size: 32px;
+        margin-bottom: 6px;
+    }
+
+    .upload-area div {
+        font-size: 14px;
+    }
+
+    .upload-area .upload-hint {
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .file-chosen {
+        font-size: 13px;
+        margin-top: 8px;
+    }
+
+    /* 按钮组调整 */
+    .hr-actions,
+    .margin-top-20.flex-gap-12 {
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .hr-actions .btn,
+    .margin-top-20.flex-gap-12 .btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 15px;
+        height: 46px;
+    }
+
+    /* 容量提示调整 */
+    .capacity-tip {
+        padding: 10px 12px;
+        font-size: 13px;
+        margin-top: 10px;
+    }
+
+    /* 结果框调整 */
+    .result-box {
+        padding: 14px 16px;
+        margin-top: 12px;
+    }
+
+    .result-box .result-title {
+        font-size: 14px;
+    }
+
+    /* 错误表格横向滚动 */
+    .fail-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        font-size: 12px;
+    }
+
+    .fail-table th,
+    .fail-table td {
+        padding: 6px 10px;
+    }
+
+    /* 弹窗调整 */
+    .modal-box {
+        padding: 20px;
+        margin: 16px;
+        max-width: calc(100vw - 32px);
+    }
+
+    .modal-box h3 {
+        font-size: 15px;
+    }
+
+    .modal-box p {
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+        padding: 10px 16px;
+    }
+
+    /* 导航栏优化 */
+    body:has(.hr-card) .nav {
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    body:has(.hr-card) .nav-brand {
+        font-size: 18px;
+    }
+
+    body:has(.hr-card) .nav-links {
+        order: 3;
+        width: 100%;
+    }
+
+    body:has(.hr-card) .nav a {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    body:has(.hr-card) .user-info {
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+
+    /* 页面标题优化 */
+    body:has(.hr-card) .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    body:has(.hr-card) .page-title h2 {
+        font-size: 22px;
+    }
+
+    body:has(.hr-card) .page-title p {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 375px) {
+    .hr-card {
+        padding: 16px 14px;
+    }
+
+    .hr-card h3 {
+        font-size: 14px;
+    }
+
+    .upload-area {
+        padding: 20px 12px;
+    }
+
+    .upload-area .upload-icon {
+        font-size: 28px;
+    }
+
+    .upload-area div {
+        font-size: 13px;
+    }
+
+    .doctor-select-row select {
+        font-size: 14px;
+        height: 42px;
+    }
+}

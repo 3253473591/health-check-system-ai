@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登录 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+<div class="login-container">
+    <h2>体检管理系统</h2>
+    <div class="subtitle">专业医疗信息管理平台</div>
+
+    <form id="loginForm">
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username" class="form-control" placeholder="请输入用户名">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="password" class="form-control" placeholder="请输入密码">
+        </div>
+        <div class="form-group login-form-group">
+            <button type="button" class="btn btn-primary btn-lg login-btn-full" onclick="doLogin()">
+                安全登录
+            </button>
+        </div>
+    </form>
+
+    <div class="query-entry">
+        <a href="report-query.html" class="query-link btn btn-secondary">查询体检报告</a>
+        <a href="capacity.html" class="query-link btn btn-primary">今日剩余体检名额</a>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    (function () {
+        const role  = localStorage.getItem('role');
+        const token = localStorage.getItem('token');
+        if (token && role) {
+            if (role === 'ADMIN')  { window.location.href = 'user.html';        return; }
+            if (role === 'DOCTOR') { window.location.href = 'doctor-home.html'; return; }
+            if (role === 'HR')     { window.location.href = 'hr-home.html';     return; }
+        }
+    })();
+
+    async function doLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        if (!username || !password) { showToast('请输入用户名和密码', 'warn'); return; }
+
+        const res = await request('/auth/login', 'POST', { username, password });
+        if (res) {
+            localStorage.setItem('token',    res.token);
+            localStorage.setItem('realName', res.realName);
+            localStorage.setItem('role',     res.role);
+            localStorage.setItem('userId',   res.userId);
+
+            if (res.role === 'ADMIN')       window.location.href = 'user.html';
+            else if (res.role === 'DOCTOR') window.location.href = 'doctor-home.html';
+            else if (res.role === 'HR')     window.location.href = 'hr-home.html';
+            else showToast('未知角色: ' + res.role, 'error');
+        }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

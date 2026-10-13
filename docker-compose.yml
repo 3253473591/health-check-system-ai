@@ -1,0 +1,76 @@
+# ============================================================
+# 依赖服务：MySQL + Ollama + AnythingLLM
+#
+# 用法：
+#   docker compose up -d mysql ollama     # 只起数据库和本地模型
+#   docker compose up -d                  # 全套
+#
+# 说明：
+#   - Ollama 首次启动后需拉取模型：
+#       docker compose exec ollama ollama pull deepseek-r1:8b-0528-qwen3-q8_0
+#   - AnythingLLM 首次访问 http://localhost:3001 完成初始化向导，
+#     上传医学指南 PDF 建立工作区，再生成 API Key 填入 .env 的 RAG_API_KEY
+#   - 应用本体不在本 compose 中，用 mvn spring-boot:run 启动即可，
+#     以便直接连接本机 IDE 调试
+# ============================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hcs-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-health_check_system}
+      TZ: Asia/Shanghai
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次创建数据库时自动执行建表脚本
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hcs-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # 有 NVIDIA 显卡时取消注释以启用 GPU 加速
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: hcs-anythingllm
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      STORAGE_DIR: /app/server/storage
+      # 若希望 AnythingLLM 使用上面这个 Ollama 容器，填容器名
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - anythingllm-storage:/app/server/storage
+    depends_on:
+      - ollama
+
+volumes:
+  mysql-data:
+  ollama-data:
+  anythingllm-storage:

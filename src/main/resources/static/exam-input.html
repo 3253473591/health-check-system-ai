@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>数据录入 - 体检管理系统</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/report.css">
+    <style>
+        .nav-logout { color: var(--danger); font-weight: 600; text-decoration: none; }
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .info-item label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+        .info-item span { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+        .input-container { padding: 24px; margin-bottom: 0; }
+        .data-table-container { padding: 24px; margin-top: 16px; }
+        .action-bar { display: none; }
+        .action-bar.active { display: flex; gap: 12px; }
+        .readonly-bar { display: none; }
+        .readonly-bar.active { display: flex; gap: 12px; }
+
+        .row-save-btn {
+            padding: 4px 10px; font-size: 12px;
+            border: 1px solid var(--primary); background: transparent;
+            color: var(--primary); border-radius: 4px; cursor: pointer;
+            white-space: nowrap; transition: background .15s, color .15s;
+        }
+        .row-save-btn:hover:not(:disabled) { background: var(--primary); color: #fff; }
+        .row-save-btn:disabled  { opacity: .45; cursor: not-allowed; }
+        .row-save-btn.saving    { opacity: .6; }
+        .row-save-btn.saved     { border-color: var(--success); color: var(--success); }
+
+        .anomaly-tag { display:inline-block; font-size:11px; padding:1px 6px; border-radius:3px; font-weight:600; margin-left:4px; }
+        .anomaly-high   { background:#fff1f0; color:#cf1322; }
+        .anomaly-low    { background:#e6f7ff; color:#0050b3; }
+        .anomaly-normal { background:#f6ffed; color:#389e0d; }
+        .anomaly-text   { background:#fffbe6; color:#874d00; }
+        .anomaly-none   { color:var(--text-tertiary); }
+
+        .input-table input[type="text"] { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 14px; background: var(--bg-primary); }
+        .input-table input[type="text"]:disabled { background: var(--bg-secondary); color: var(--text-secondary); cursor: not-allowed; }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <div class="nav-left">
+            <div class="nav-brand">体检管理系统</div>
+            <div class="nav-links">
+                <a href="doctor-home.html">首页</a>
+                <a href="exam-register.html">体检登记</a>
+                <a href="exam-list.html">体检记录</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-info"><span>👨‍⚕️ <strong id="currentUser"></strong> | 医生</span></div>
+            <a href="#" onclick="logout()" class="nav-logout">退出</a>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h2 id="pageTitle">体检数据录入</h2>
+            <p id="pageSubtitle">填写各项检查结果并保存</p>
+        </div>
+        <button class="btn btn-secondary" onclick="history.back()">← 返回列表</button>
+    </div>
+
+    <div class="table-container input-container">
+        <div class="info-grid" id="infoGrid">
+            <div class="info-item"><label>体检者姓名</label><span id="iName">-</span></div>
+            <div class="info-item"><label>身份证号</label><span id="iId">-</span></div>
+            <div class="info-item"><label>手机号</label><span id="iPhone">-</span></div>
+            <div class="info-item"><label>体检套餐</label><span id="iPkg">-</span></div>
+            <div class="info-item"><label>当前状态</label><span id="iStatus">-</span></div>
+            <div class="info-item"><label>体检单号</label><span id="iExamId">-</span></div>
+        </div>
+    </div>
+
+    <div class="table-container data-table-container">
+        <div id="lockedTip" class="locked-tip" style="display:none;">🔒 该记录已锁定，仅允许查看，不可修改。</div>
+        <table class="input-table">
+            <thead>
+            <tr>
+                <th style="width:40px;">#</th><th>项目名称</th><th>分类</th><th>参考范围</th>
+                <th style="width:180px;">检查结果</th><th style="width:90px;">单位</th>
+                <th style="width:90px;">异常判断</th><th style="width:80px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="itemsBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text-tertiary);">加载中...</td></tr>
+            </tbody>
+        </table>
+        <div class="action-bar" id="actionBar">
+            <button class="btn btn-secondary" onclick="history.back()">返回</button>
+            <button class="btn btn-danger" id="btnLock" onclick="lockExam()">完成录入</button>
+        </div>
+        <div class="readonly-bar" id="readonlyBar">
+            <button class="btn btn-secondary" onclick="history.back()">返回列表</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+    checkAuth('DOCTOR');
+    document.getElementById('currentUser').innerText = localStorage.getItem('realName');
+
+    const STATUS_LABEL = { PENDING:'待体检', IN_PROGRESS:'进行中', LOCKED:'已锁定', PUBLISHED:'已发布' };
+    const params  = new URLSearchParams(window.location.search);
+    const examId  = params.get('examId');
+    if (!examId) { showToast('缺少体检单号', 'error'); history.back(); }
+
+    let isLocked = false, savedMap = {};
+    const debounceMap = {}, savingMap = {};
+
+    function detectAnomaly(v, ref) {
+        v = (v||'').trim(); ref = (ref||'').trim();
+        if (!v || !ref || ref === '-') return { level:'unknown', label:'—' };
+        const bpRef = ref.match(/^(\d+)-(\d+)\/(\d+)-(\d+)$/);
+        const bpVal = v.match(/^(\d+)[\/\\](\d+)$/);
+        if (bpRef && bpVal) {
+            const [,sysLo,sysHi,diaLo,diaHi]=bpRef.map(Number), [,sys,dia]=bpVal.map(Number);
+            if (sys>=sysLo&&sys<=sysHi&&dia>=diaLo&&dia<=diaHi) return {level:'normal',label:'无异常'};
+            return (sys>sysHi||dia>diaHi) ? {level:'high',label:'高'} : {level:'low',label:'低'};
+        }
+        const upEx=ref.match(/^[<＜]\s*(\d+\.?\d*)$/), upIn=ref.match(/^[≤⩽]\s*(\d+\.?\d*)$/);
+        if (upEx||upIn){const l=parseFloat((upEx||upIn)[1]),n=parseFloat(v);if(isNaN(n))return{level:'unknown',label:'—'};return(upEx?n<l:n<=l)?{level:'normal',label:'无异常'}:{level:'high',label:'高'};}
+        const loEx=ref.match(/^[>＞]\s*(\d+\.?\d*)$/), loIn=ref.match(/^[≥⩾]\s*(\d+\.?\d*)$/);
+        if (loEx||loIn){const l=parseFloat((loEx||loIn)[1]),n=parseFloat(v);if(isNaN(n))return{level:'unknown',label:'—'};return(loEx?n>l:n>=l)?{level:'normal',label:'无异常'}:{level:'low',label:'低'};}
+        const rng=ref.match(/^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)$/);
+        if (rng){const lo=parseFloat(rng[1]),hi=parseFloat(rng[2]),n=parseFloat(v);if(isNaN(n))return{level:'unknown',label:'—'};if(n<lo)return{level:'low',label:'低'};if(n>hi)return{level:'high',label:'高'};return{level:'normal',label:'无异常'};}
+        if (!/\d/.test(ref)) return v===ref?{level:'normal',label:'无异常'}:{level:'text_abnormal',label:'异常'};
+        return {level:'unknown',label:'—'};
+    }
+
+    function anomalyHtml(v, ref) {
+        const {level,label} = detectAnomaly(v, ref);
+        const cls = {normal:'anomaly-normal',high:'anomaly-high',low:'anomaly-low',text_abnormal:'anomaly-text',unknown:'anomaly-none'}[level]||'anomaly-none';
+        return `<span class="anomaly-tag ${cls}">${label}</span>`;
+    }
+
+    function setRowState(iid, saving) {
+        const btn=document.getElementById('btn_'+iid), valEl=document.getElementById('val_'+iid), unitEl=document.getElementById('unit_'+iid);
+        if (valEl)  valEl.disabled  = isLocked || saving;
+        if (unitEl) unitEl.disabled = isLocked || saving;
+        if (!btn) return;
+        btn.disabled = saving;
+        btn.classList.toggle('saving', saving);
+        if (saving) btn.innerText = '保存中…';
+    }
+
+    function renderItems(items) {
+        const tbody = document.getElementById('itemsBody');
+        tbody.innerHTML = '';
+        items.forEach((item, idx) => {
+            const saved = savedMap[item.itemId] || {};
+            const val   = saved.itemValue || '';
+            const unit  = saved.unit || item.unit || '';
+            const dis   = isLocked ? 'disabled' : '';
+            const iid   = item.itemId;
+            const tr    = document.createElement('tr');
+            tr.dataset.itemId   = iid;
+            tr.dataset.refRange = item.refRange || '';
+            tr.innerHTML = `
+                <td style="color:var(--text-tertiary);">${idx+1}</td>
+                <td style="font-weight:600;">${item.itemName}</td>
+                <td style="color:var(--text-secondary);">${item.category||'-'}</td>
+                <td style="color:var(--text-secondary);font-size:13px;">${item.refRange||'-'}</td>
+                <td><input type="text" id="val_${iid}" value="${val}" placeholder="请填写结果" ${dis} oninput="onValueInput(${iid})"></td>
+                <td><input type="text" id="unit_${iid}" value="${unit}" placeholder="${item.unit||''}" ${dis} oninput="onValueInput(${iid})"></td>
+                <td id="anomaly_${iid}">${anomalyHtml(val, item.refRange)}</td>
+                <td>${isLocked ? '' : `<button class="row-save-btn" id="btn_${iid}" onclick="saveRow(${iid},false)">保存</button>`}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function onValueInput(iid) {
+        const tr  = document.querySelector(`tr[data-item-id="${iid}"]`);
+        const ref = tr ? tr.dataset.refRange : '';
+        const v   = (document.getElementById('val_'+iid)||{}).value || '';
+        const el  = document.getElementById('anomaly_'+iid);
+        if (el) el.innerHTML = anomalyHtml(v, ref);
+        clearTimeout(debounceMap[iid]);
+        debounceMap[iid] = setTimeout(() => saveRow(iid, true), 800);
+    }
+
+    async function saveRow(iid, silent=false) {
+        clearTimeout(debounceMap[iid]);
+        if (savingMap[iid]) return;
+        const valEl  = document.getElementById('val_'+iid);
+        const unitEl = document.getElementById('unit_'+iid);
+        if (!valEl) return;
+        const val  = valEl.value.trim();
+        const unit = unitEl ? unitEl.value.trim() : '';
+        if (!val) { if (!silent) showToast('请先填写检查结果', 'warn'); return; }
+        savingMap[iid] = true;
+        setRowState(iid, true);
+        try {
+            const res = await request(`/doctor/examinations/${examId}/data`, 'POST', [{itemId:iid, itemValue:val, unit:unit||null}]);
+            if (res !== null) {
+                savedMap[iid] = {itemValue:val, unit};
+                const btn = document.getElementById('btn_'+iid);
+                if (btn) {
+                    btn.classList.add('saved'); btn.innerText = '已保存';
+                    setTimeout(() => { if (!savingMap[iid]&&btn) { btn.classList.remove('saved'); btn.innerText='保存'; } }, 2000);
+                }
+            } else {
+                const btn = document.getElementById('btn_'+iid);
+                if (btn) btn.innerText = '保存';
+            }
+        } finally { savingMap[iid]=false; setRowState(iid,false); }
+    }
+
+    async function lockExam() {
+        if (Object.values(savingMap).some(Boolean)) { showToast('仍有数据正在保存，请稍后再试', 'warn'); return; }
+        const ok = await showConfirm('完成录入后将锁定记录，不可再修改，确认吗？', '确认锁定', '🔒');
+        if (!ok) return;
+        const btnLock = document.getElementById('btnLock');
+        if (btnLock) btnLock.disabled = true;
+        try {
+            const res = await request(`/doctor/examinations/${examId}/lock`, 'PUT');
+            if (res) { showToast('录入完成，记录已锁定！', 'success'); setTimeout(() => window.location.href='exam-list.html', 1500); }
+        } finally { if (btnLock) btnLock.disabled = false; }
+    }
+
+    async function init() {
+        const detail = await request(`/doctor/examinations/${examId}`, 'GET');
+        if (!detail) return;
+        const { packageId, status } = detail;
+        isLocked = (status === 'LOCKED' || status === 'PUBLISHED');
+
+        document.getElementById('iName').innerText   = detail.realName || '-';
+        document.getElementById('iId').innerText     = maskSensitive(detail.idNumber);
+        document.getElementById('iPhone').innerText  = maskSensitive(detail.phone) || '未填写';
+        document.getElementById('iPkg').innerText    = detail.packageName || '-';
+        document.getElementById('iStatus').innerText = STATUS_LABEL[status] || status;
+        document.getElementById('iExamId').innerText = '#' + detail.examId;
+
+        (detail.physicalDataList||[]).forEach(d => { savedMap[d.itemId] = {itemValue:d.itemValue, unit:d.unit}; });
+
+        const items = await request(`/doctor/packages/${packageId}/items`, 'GET');
+        if (!items || !items.length) {
+            document.getElementById('itemsBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-tertiary);">该套餐暂无项目</td></tr>';
+            return;
+        }
+        renderItems(items);
+
+        if (isLocked) {
+            document.getElementById('lockedTip').style.display   = 'block';
+            document.getElementById('readonlyBar').classList.add('active');
+            document.getElementById('pageTitle').innerText       = '体检数据查看';
+            document.getElementById('pageSubtitle').innerText    = '该记录已锁定，仅允许查看';
+        } else {
+            document.getElementById('actionBar').classList.add('active');
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
