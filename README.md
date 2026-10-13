@@ -5,7 +5,7 @@
 > 本科毕业设计作品，现已整理开源。
 > **演示数据全部为虚构**，系统中不含任何真实个人信息。
 
-![报告撰写界面：右侧为 AI 辅助生成侧边栏](docs/images/shot-报告撰写界面.png)
+![报告撰写界面：右侧为 AI 辅助生成侧边栏](docs/images/shot-report-editor.png)
 
 医生报告撰写界面：左侧是体检数据与结论编辑区，**右侧为 AI 辅助生成侧边栏**——点击「生成」后通过 SSE 流式输出结论与建议草稿，医生确认后点「采纳」填入编辑区。AI 内容仅作参考，最终发布责任在医生。
 
@@ -56,37 +56,37 @@
 
 体检数据录入（身份证与手机号在界面层即脱敏展示）：
 
-![体检数据录入界面](docs/images/shot-体检数据录入界面.png)
+![体检数据录入界面](docs/images/shot-data-entry.png)
 
 体检登记：
 
-![体检登记界面](docs/images/shot-体检登记界面.png)
+![体检登记界面](docs/images/shot-registration.png)
 
 企业 HR 团体批量导入：
 
-![HR 批量导入界面](docs/images/shot-HR批量导入界面.png)
+![HR 批量导入界面](docs/images/shot-hr-bulk-import.png)
 
 体检名额配置：
 
-![体检名额配置界面](docs/images/shot-体检名额配置界面.png)
+![体检名额配置界面](docs/images/shot-capacity-config.png)
 
 公众端名额查询（移动端自适应）：
 
-<img src="docs/images/shot-体检名额查询Web端.png" width="420" alt="体检名额查询">
+<img src="docs/images/shot-capacity-query.png" width="420" alt="体检名额查询">
 
 ## 设计文档
 
 系统总体架构：
 
-![系统总体架构图](docs/images/diagram-架构图.png)
+![系统总体架构图](docs/images/diagram-architecture.png)
 
 功能结构（「医生功能域 → AI 辅助报告生成模块」对应本文档重点介绍的 RAG 链路）：
 
-![系统总体功能结构](docs/images/diagram-功能结构图.png)
+![系统总体功能结构](docs/images/diagram-function-tree.png)
 
 数据库 E-R 图：
 
-![E-R 图](docs/images/diagram-ER图.png)
+![E-R 图](docs/images/diagram-er.png)
 
 ## 快速开始
 
